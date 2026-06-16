@@ -1,0 +1,57 @@
+[
+  {
+    "name": "Aayush Gurung",
+    "email": "aayush.freelancer@test.com",
+    "role": "freelancer",
+    "password": "SecurePass123!",
+    "authProvider": "local",
+    "isVerified": true,
+    "accountStatus": "active",
+    "trustScore": 84,
+    "points": 750
+  },
+  {
+    "name": "Priya Sharma",
+    "email": "priya.client@test.com",
+    "role": "client",
+    "password": "SecurePass456!",
+    "authProvider": "local",
+    "isVerified": true,
+    "accountStatus": "active",
+    "trustScore": 91,
+    "points": 320
+  },
+  {
+    "name": "Task Tide Admin",
+    "email": "admin@tasktide.com",
+    "role": "admin",
+    "password": "AdminPass789!",
+    "authProvider": "local",
+    "isVerified": true,
+    "accountStatus": "active",
+    "trustScore": 100,
+    "points": 0
+  },
+  {
+    "name": "Banned User",
+    "email": "banned@test.com",
+    "role": "freelancer",
+    "password": "BannedPass000!",
+    "authProvider": "local",
+    "isVerified": true,
+    "accountStatus": "suspended",
+    "trustScore": 10,
+    "points": 0
+  },
+  {
+    "name": "Google OAuth User",
+    "email": "google.user@gmail.com",
+    "role": "client",
+    "googleId": "google-sub-id-1234567890",
+    "authProvider": "google",
+    "isVerified": true,
+    "accountStatus": "active",
+    "trustScore": 100,
+    "points": 0
+  }
+]

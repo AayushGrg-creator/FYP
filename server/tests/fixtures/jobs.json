@@ -1,0 +1,65 @@
+[
+  {
+    "id": "job_001",
+    "title": "Build a React e-commerce dashboard",
+    "description": "We need an experienced React developer with Node.js backend skills to build a full-stack e-commerce dashboard. Must know MongoDB, REST APIs, and have experience with payment integrations like Stripe.",
+    "skills": ["React", "Node.js", "MongoDB", "Stripe", "REST API"],
+    "budget": 150000,
+    "category": "Web Development",
+    "status": "open"
+  },
+  {
+    "id": "job_002",
+    "title": "Vue.js frontend for SaaS application",
+    "description": "Looking for a Vue.js developer to build a SaaS frontend application with TypeScript. Experience with Pinia state management and Tailwind CSS required.",
+    "skills": ["Vue.js", "TypeScript", "Pinia", "Tailwind CSS"],
+    "budget": 120000,
+    "category": "Web Development",
+    "status": "open"
+  },
+  {
+    "id": "job_003",
+    "title": "WordPress custom plugin development",
+    "description": "Need a PHP developer experienced in WordPress plugin development. Must understand hooks, filters, WooCommerce integration, and REST API endpoints.",
+    "skills": ["PHP", "WordPress", "WooCommerce", "REST API"],
+    "budget": 80000,
+    "category": "Web Development",
+    "status": "open"
+  },
+  {
+    "id": "job_004",
+    "title": "UI/UX designer for mobile app",
+    "description": "Seeking a UI/UX designer to create wireframes and high-fidelity designs for an iOS and Android app. Proficiency in Figma required. Must have experience with user research and prototyping.",
+    "skills": ["Figma", "UI Design", "UX Research", "Prototyping", "Mobile Design"],
+    "budget": 90000,
+    "category": "Graphic Design",
+    "status": "open"
+  },
+  {
+    "id": "job_005",
+    "title": "Brand identity design for startup",
+    "description": "Need a graphic designer to create complete brand identity including logo, color palette, typography, and brand guidelines for a tech startup.",
+    "skills": ["Logo Design", "Brand Identity", "Adobe Illustrator", "Typography"],
+    "budget": 60000,
+    "category": "Graphic Design",
+    "status": "open"
+  },
+  {
+    "id": "job_006",
+    "title": "Technical content writer for developer blog",
+    "description": "Looking for a technical writer with software development background to write blog posts, tutorials, and documentation. Must be comfortable writing about APIs, cloud services, and DevOps practices.",
+    "skills": ["Technical Writing", "API Documentation", "Cloud", "DevOps"],
+    "budget": 40000,
+    "category": "Content Writing",
+    "status": "open"
+  },
+  {
+    "id": "job_007",
+    "title": "Digital marketing specialist",
+    "description": "Need a digital marketing expert with proven SEO and Google Ads experience. Must be skilled in content strategy, social media marketing, and analytics tools like Google Analytics.",
+    "skills": ["SEO", "Google Ads", "Social Media Marketing", "Google Analytics"],
+    "budget": 70000,
+    "category": "Digital Marketing",
+    "status": "open"
+  }
+]

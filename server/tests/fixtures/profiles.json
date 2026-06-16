@@ -1,0 +1,42 @@
+[
+  {
+    "id": "u_001",
+    "name": "Alice Developer",
+    "role": "freelancer",
+    "skills": ["React", "Node.js", "MongoDB"],
+    "reputationScore": 95,
+    "verified": true,
+    "location": "Remote",
+    "bio": "Full-stack developer with a passion for building scalable marketplace solutions."
+  },
+  {
+    "id": "u_002",
+    "name": "Bob Client",
+    "role": "client",
+    "company": "TechStream Inc.",
+    "reputationScore": 88,
+    "verified": false,
+    "location": "San Francisco",
+    "bio": "Tech entrepreneur looking for high-quality engineering talent."
+  },
+  {
+    "id": "u_003",
+    "name": "Charlie Designer",
+    "role": "freelancer",
+    "skills": ["Figma", "UI Design", "Prototyping"],
+    "reputationScore": 92,
+    "verified": true,
+    "location": "Berlin",
+    "bio": "Creative designer specializing in intuitive mobile user experiences."
+  },
+  {
+    "id": "u_004",
+    "name": "Dana Marketing",
+    "role": "freelancer",
+    "skills": ["SEO", "Google Ads", "Content Strategy"],
+    "reputationScore": 85,
+    "verified": true,
+    "location": "London",
+    "bio": "Marketing strategist focused on driving growth for tech startups."
+  }
+]

@@ -1,0 +1,315 @@
+/* ── Layout ── */
+.authContainer {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F0F4FF;
+  padding: 2rem 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle background decoration */
+.authContainer::before {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(29,111,235,0.07) 0%, transparent 70%);
+  top: -150px;
+  right: -150px;
+  pointer-events: none;
+}
+
+.authContainer::after {
+  content: '';
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,180,216,0.06) 0%, transparent 70%);
+  bottom: -100px;
+  left: -100px;
+  pointer-events: none;
+}
+
+.authCard {
+  background: #FFFFFF;
+  border: 1px solid #D6E4FF;
+  border-radius: 20px;
+  padding: 2.75rem 2.5rem 2.25rem;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 4px 32px rgba(29, 111, 235, 0.10);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Logo ── */
+.logoContainer {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.logo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0F1C3F;
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.logo span {
+  color: #1D6FEB;
+}
+
+/* ── Header ── */
+.authHeader {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.authHeader h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0F1C3F;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.authHeader p {
+  font-size: 0.9rem;
+  color: #8FA3CC;
+  margin: 0;
+}
+
+/* ── Input Group ── */
+.inputGroup {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  background: #F8FAFF;
+  border: 1px solid #D6E4FF;
+  border-radius: 10px;
+  padding: 0 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.inputGroup:focus-within {
+  border-color: #1D6FEB;
+  box-shadow: 0 0 0 3px rgba(29, 111, 235, 0.10);
+}
+
+.inputGroup i {
+  color: #1D6FEB;
+  font-size: 0.9rem;
+  margin-right: 0.75rem;
+  flex-shrink: 0;
+}
+
+.inputGroup input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0.75rem 0;
+  color: #0F1C3F;
+  font-size: 0.95rem;
+}
+
+.inputGroup input::placeholder {
+  color: #A8C5FF;
+}
+
+/* ── Password toggle ── */
+.togglePassword {
+  cursor: pointer;
+  color: #8FA3CC;
+  padding: 0.25rem;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.togglePassword:hover {
+  color: #1D6FEB;
+}
+
+/* ── Password strength ── */
+.strengthMeter {
+  height: 4px;
+  background: #D6E4FF;
+  border-radius: 4px;
+  margin: -0.5rem 0 1rem;
+  overflow: hidden;
+}
+
+.strengthBar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* ── Account type ── */
+.userTypeTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4B5E8A;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.userTypeContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.userCard {
+  background: #F8FAFF;
+  border: 1.5px solid #D6E4FF;
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  text-align: center;
+}
+
+.userCard:hover {
+  border-color: #1D6FEB;
+  background: #EBF2FF;
+}
+
+.userCard.active {
+  border-color: #1D6FEB;
+  background: #EBF2FF;
+  box-shadow: 0 2px 12px rgba(29, 111, 235, 0.12);
+}
+
+.userCard i {
+  font-size: 1.5rem;
+  color: #1D6FEB;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.userCard h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0F1C3F;
+  margin: 0 0 0.3rem;
+}
+
+.userCard p {
+  font-size: 0.75rem;
+  color: #8FA3CC;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ── Terms ── */
+.terms {
+  margin-bottom: 1.25rem;
+}
+
+.terms label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #4B5E8A;
+  cursor: pointer;
+}
+
+.terms input[type="checkbox"] {
+  accent-color: #1D6FEB;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Primary button ── */
+.btnPrimary {
+  width: 100%;
+  padding: 0.8rem;
+  background: #1D6FEB;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 12px rgba(29, 111, 235, 0.25);
+}
+
+.btnPrimary:hover {
+  background: #1455BF;
+  box-shadow: 0 4px 16px rgba(29, 111, 235, 0.35);
+}
+
+.btnPrimary:active {
+  transform: scale(0.98);
+}
+
+.btnPrimary:disabled {
+  background: #A8C5FF;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* ── Divider ── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #D6E4FF;
+}
+
+.divider span {
+  font-size: 0.78rem;
+  color: #8FA3CC;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+}
+
+/* ── Google button wrapper ── */
+.googleWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  min-height: 44px;
+}
+
+/* ── Bottom text ── */
+.bottomText {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #4B5E8A;
+  margin: 0;
+}
+
+.bottomText a {
+  color: #1D6FEB;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.bottomText a:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,322 @@
+# .github/workflows/ci.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# TaskTide – Continuous Integration Pipeline
+#
+# Triggers:
+#   • Every push to any branch
+#   • Every pull request targeting main or develop
+#
+# Jobs (run in parallel where possible):
+#   lint        → ESLint + Prettier check on both client and server
+#   unit-tests  → Jest unit suite (pure logic, no DB, fast)
+#   int-tests   → Jest integration suite (MongoMemoryServer, Supertest)
+#   build-check → Vite production build verification (no DB needed)
+#
+# All jobs must pass before a PR can be merged (enforced via branch protection).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs for the same branch to save compute minutes
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18.x'          # matches Render production (Node.js v18.17.0)
+  MONGODB_VERSION: '6.0.4'      # matches MongoDB Atlas M0 cluster version
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 – Lint (client + server)
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  lint:
+    name: 🔍 Lint & Format Check
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      # ── Server lint ────────────────────────────────────────────────────
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci --prefer-offline
+
+      - name: ESLint – server
+        working-directory: server
+        run: npx eslint . --ext .js --max-warnings 0
+        env:
+          NODE_ENV: test
+
+      - name: Prettier check – server
+        working-directory: server
+        run: npx prettier --check "**/*.{js,json,md}"
+
+      # ── Client lint ────────────────────────────────────────────────────
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci --prefer-offline
+
+      - name: ESLint – client
+        working-directory: client
+        run: npx eslint src --ext .js,.jsx --max-warnings 0
+        env:
+          NODE_ENV: test
+
+      - name: Prettier check – client
+        working-directory: client
+        run: npx prettier --check "src/**/*.{js,jsx,css}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2 – Unit Tests (server, no external I/O)
+# ─────────────────────────────────────────────────────────────────────────────
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    needs: lint            # don't waste minutes on broken code
+
+    env:
+      NODE_ENV:       test
+      JWT_SECRET:     ci_jwt_secret_at_least_32_chars_long
+      BCRYPT_ROUNDS:  4     # keep hashing fast in CI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci --prefer-offline
+
+      - name: Run unit test suite
+        working-directory: server
+        run: |
+          npx jest \
+            --project unit \
+            --coverage \
+            --coverageReporters="text" \
+            --coverageReporters="lcov" \
+            --reporters="default" \
+            --reporters="jest-junit" \
+            --ci \
+            --forceExit
+        env:
+          TEST_PROJECT: unit
+
+      - name: Upload unit coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-coverage
+          path: server/coverage/
+          retention-days: 14
+
+      - name: Upload unit test results (JUnit)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-junit
+          path: server/test-results/junit.xml
+          retention-days: 14
+
+      - name: Publish unit test summary to GitHub
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name:    Unit Test Results
+          path:    server/test-results/junit.xml
+          reporter: jest-junit
+          fail-on-error: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 3 – Integration Tests (MongoMemoryServer, Supertest)
+# ─────────────────────────────────────────────────────────────────────────────
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    needs: lint
+
+    env:
+      NODE_ENV:              test
+      JWT_SECRET:            ci_jwt_secret_at_least_32_chars_long
+      JWT_EXPIRES_IN:        1d
+      BCRYPT_ROUNDS:         4
+      PLATFORM_FEE:          '0.08'
+      # Khalti / Stripe secrets are mocked in jest.setup.js – real keys NOT needed
+      KHALTI_SECRET:         khalti_test_secret_ci
+      KHALTI_WEBHOOK_SECRET: khalti_webhook_secret_ci
+      STRIPE_SECRET:         sk_test_stripe_ci_secret
+      STRIPE_WEBHOOK_SECRET: whsec_test_stripe_secret
+      EMAIL_HOST:            smtp.ethereal.email   # test SMTP, discards mail
+      EMAIL_PORT:            '587'
+      EMAIL_USER:            ci@tasktide.test
+      EMAIL_PASS:            ci_email_pass
+      EMAIL_FROM:            noreply@tasktide.test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci --prefer-offline
+
+      # MongoMemoryServer downloads its own mongod binary if not cached
+      - name: Cache MongoMemoryServer binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongomemory-${{ env.MONGODB_VERSION }}-${{ runner.os }}
+
+      - name: Run integration test suite (serial)
+        working-directory: server
+        run: |
+          npx jest \
+            --project integration \
+            --runInBand \
+            --coverage \
+            --coverageReporters="text" \
+            --coverageReporters="lcov" \
+            --reporters="default" \
+            --reporters="jest-junit" \
+            --ci \
+            --forceExit \
+            --detectOpenHandles
+        env:
+          JEST_JUNIT_OUTPUT_DIR: test-results
+          JEST_JUNIT_OUTPUT_NAME: junit-integration.xml
+
+      - name: Upload integration coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-coverage
+          path: server/coverage/
+          retention-days: 14
+
+      - name: Upload integration test results (JUnit)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-junit
+          path: server/test-results/junit-integration.xml
+          retention-days: 14
+
+      - name: Publish integration test summary to GitHub
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name:    Integration Test Results
+          path:    server/test-results/junit-integration.xml
+          reporter: jest-junit
+          fail-on-error: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 4 – Client Build Check (Vite production build)
+# ─────────────────────────────────────────────────────────────────────────────
+  build-check:
+    name: 🏗️ Client Build Check
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci --prefer-offline
+
+      - name: Vite production build
+        working-directory: client
+        run: npm run build
+        env:
+          # Stub all API URLs so build succeeds without real secrets
+          VITE_API_URL:         https://tasktide-api.onrender.com
+          VITE_SOCKET_URL:      https://tasktide-api.onrender.com
+          VITE_KHALTI_PUBLIC:   test_khalti_public_key
+          VITE_STRIPE_PUBLIC:   pk_test_stripe_public_key
+          NODE_ENV:             production
+
+      - name: Check build output exists and is non-empty
+        run: |
+          if [ ! -d "client/dist" ] || [ -z "$(ls -A client/dist)" ]; then
+            echo "::error::Build output directory is empty or missing"
+            exit 1
+          fi
+          echo "Build artifact size: $(du -sh client/dist | cut -f1)"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist/
+          retention-days: 3
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 5 – Coverage Gate (merge all reports, enforce thresholds)
+# Runs only on PRs targeting main to surface coverage regressions early.
+# ─────────────────────────────────────────────────────────────────────────────
+  coverage-gate:
+    name: 📊 Coverage Gate
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    needs: [unit-tests, integration-tests]
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download unit coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage/unit
+
+      - name: Download integration coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-coverage
+          path: coverage/integration
+
+      - name: Coverage summary comment on PR
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          lcov-file:    coverage/unit/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          title:        '📊 Unit Test Coverage'
