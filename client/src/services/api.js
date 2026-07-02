@@ -24,6 +24,10 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Paths that already handle their own 401s inline (invalid credentials, etc.)
+// and should never be force-redirected/reloaded out from under the user.
+const AUTH_ENTRY_PATHS = ['/login', '/register'];
+
 // ── Response Interceptor: Global Error Normalization ──
 api.interceptors.response.use(
   (response) => {
@@ -35,9 +39,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('tt_token');
       localStorage.removeItem('tt_user');
-      
-      // Redirect to login only if not already on the login page
-      if (window.location.pathname !== '/login') {
+
+      // Redirect to login only if not already on a page that handles
+      // its own auth errors inline (login/register forms).
+      if (!AUTH_ENTRY_PATHS.includes(window.location.pathname)) {
         window.location.href = '/login';
       }
     }

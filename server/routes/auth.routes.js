@@ -6,6 +6,8 @@
  *
  * Endpoints
  * ─────────
+ *  POST  /api/auth/register  → register      (email/password sign-up)
+ *  POST  /api/auth/login     → login         (email/password sign-in)
  *  POST  /api/auth/google    → googleSignIn  (sign-up or sign-in via Google OAuth)
  *  GET   /api/auth/session   → checkSession  (restore AuthContext on page reload)
  *  POST  /api/auth/logout    → logout        (clear session cookie)
@@ -18,10 +20,12 @@
  *
  * Rate-limit rationale
  * ────────────────────
- *  /google  – 10 req / 15 min  → credential stuffing prevention (expensive verify call)
- *  /session – 60 req / 15 min  → polled by React AuthContext on mount & tab focus
+ *  /register – 10 req / 15 min → same budget as /google, prevents mass account creation
+ *  /login    – 10 req / 15 min → credential stuffing / brute-force prevention
+ *  /google   – 10 req / 15 min → credential stuffing prevention (expensive verify call)
+ *  /session  – 60 req / 15 min → polled by React AuthContext on mount & tab focus
  *                                 (reduced from 120 — still generous for normal usage)
- *  /logout  – 20 req / 15 min  → no real attack surface; prevents automated spam
+ *  /logout   – 20 req / 15 min → no real attack surface; prevents automated spam
  *
  * NOTE on double rate-limiting:
  *  app.js applies authLimiter globally to /api/auth/*.
@@ -73,6 +77,18 @@ function _makeRateLimiter({ windowMs, max, message }) {
 }
 
 // Per-route rate limit instances
+const registerRateLimit = _makeRateLimiter({
+  windowMs : 15 * 60 * 1000,
+  max      : 10,
+  message  : 'Too many registration attempts from this IP. Please wait 15 minutes and try again.',
+});
+
+const loginRateLimit = _makeRateLimiter({
+  windowMs : 15 * 60 * 1000,
+  max      : 10,
+  message  : 'Too many login attempts from this IP. Please wait 15 minutes and try again.',
+});
+
 const googleRateLimit = _makeRateLimiter({
   windowMs : 15 * 60 * 1000,
   max      : 10,
@@ -122,6 +138,69 @@ function _validateRequest(req, res, next) {
 // ─── Validation chains ────────────────────────────────────────────────────────
 
 /**
+ * Validation chain for POST /register
+ *
+ * Rules:
+ *  - name      required, string, 2-100 chars
+ *  - email     required, valid email, normalized
+ *  - password  required, min 6 chars
+ *  - role      required, must be client|freelancer
+ */
+const registerValidation = [
+  body('name')
+    .trim()
+    .notEmpty()
+    .withMessage('Name is required.')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters.'),
+
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('Email is required.')
+    .isEmail()
+    .withMessage('Enter a valid email address.')
+    .normalizeEmail(),
+
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required.')
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters.'),
+
+  body('role')
+    .notEmpty()
+    .withMessage('Role is required.')
+    .isIn(['client', 'freelancer'])
+    .withMessage('role must be "client" or "freelancer".'),
+
+  _validateRequest,
+];
+
+/**
+ * Validation chain for POST /login
+ *
+ * Rules:
+ *  - email     required, valid email, normalized
+ *  - password  required, non-empty
+ */
+const loginValidation = [
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('Email is required.')
+    .isEmail()
+    .withMessage('Enter a valid email address.')
+    .normalizeEmail(),
+
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required.'),
+
+  _validateRequest,
+];
+
+/**
  * Validation chain for POST /google
  *
  * Rules:
@@ -157,6 +236,34 @@ const googleSignInValidation = [
 ];
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/auth/register
+ * ────────────────────────
+ * Create a new account using name/email/password.
+ *
+ * Body: { name: string, email: string, password: string, role: 'client'|'freelancer' }
+ */
+router.post(
+  '/register',
+  registerRateLimit,
+  registerValidation,
+  authController.register,
+);
+
+/**
+ * POST /api/auth/login
+ * ─────────────────────
+ * Authenticate an existing account using email/password.
+ *
+ * Body: { email: string, password: string }
+ */
+router.post(
+  '/login',
+  loginRateLimit,
+  loginValidation,
+  authController.login,
+);
 
 /**
  * POST /api/auth/google

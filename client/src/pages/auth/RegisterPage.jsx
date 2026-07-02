@@ -86,8 +86,8 @@ const RegisterPage = () => {
       setError('Please fill in all fields');
       return;
     }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
     if (form.password !== form.confirmPassword) {
@@ -215,7 +215,7 @@ const RegisterPage = () => {
               name="password"
               value={form.password}
               onChange={handleChange}
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
               style={s.input}
               autoComplete="new-password"
             />

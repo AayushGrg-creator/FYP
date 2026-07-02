@@ -85,6 +85,8 @@ const ERROR_STATUS_MAP = Object.freeze({
   // ── Credentials ─────────────────────────────────────────────────────────────
   // ✅ ADDED: email+password login failure
   INVALID_CREDENTIALS    : 401,
+  // ✅ ADDED: password login attempted on a Google-only account
+  GOOGLE_ONLY_ACCOUNT    : 400,
 
   // ── Rate limiting ────────────────────────────────────────────────────────────
   // ✅ ADDED: express-rate-limit or custom throttle middleware

@@ -7,9 +7,11 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 function LoginPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { googleLogin, isAuthenticated, loading, error, clearError } = useAuth();
+  const { googleLogin, login, isAuthenticated, loading, error, clearError } = useAuth();
 
-  const [formError, setFErr] = useState('');
+  const [formError, setFErr]   = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ email: '', password: '' });
   const from = location.state?.from?.pathname || '/dashboard';
 
   const googleLoginRef = useRef(googleLogin);
@@ -54,6 +56,33 @@ function LoginPage() {
     }
   }, [from]);
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+    if (formError) setFErr('');
+    if (error && clearError) clearError();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFErr('');
+
+    if (!form.email.trim() || !form.password) {
+      setFErr('Please enter your email and password');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await login({ email: form.email.trim(), password: form.password });
+      navigate(from, { replace: true });
+    } catch (err) {
+      setFErr(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const displayError = formError || error;
 
   return (
@@ -82,21 +111,42 @@ function LoginPage() {
           </div>
         )}
 
-        <div style={s.form}>
-          {/* Divider */}
-          <div style={s.divider}>
-            <div style={s.dividerLine} />
-            <span style={s.dividerText}>sign in with</span>
-            <div style={s.dividerLine} />
+        <form style={s.form} onSubmit={handleSubmit}>
+
+          <div style={s.fieldGroup}>
+            <label style={s.fieldLabel}>Email</label>
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+              style={s.input}
+              autoComplete="email"
+            />
           </div>
+
+          <div style={s.fieldGroup}>
+            <label style={s.fieldLabel}>Password</label>
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Your password"
+              style={s.input}
+              autoComplete="current-password"
+            />
+          </div>
+
+          <button type="submit" style={s.submitBtn} disabled={submitting}>
+            {submitting ? 'Signing in...' : 'Login'}
+          </button>
 
           {/* Google GSI button */}
           <div id="google-btn-login" style={s.googleWrap} />
 
-          <p style={s.hint}>
-            TaskTide uses Google sign-in for secure, passwordless authentication.
-          </p>
-        </div>
+        </form>
 
         <p style={s.footerText}>
           Don't have an account?{' '}
@@ -204,17 +254,43 @@ const s = {
     gap: 16,
     width: '100%',
   },
-  divider: {
+  fieldGroup: {
     display: 'flex',
-    alignItems: 'center',
-    gap: 12,
+    flexDirection: 'column',
+    gap: 6,
   },
-  dividerLine: { flex: 1, height: 1, background: '#D6E4FF' },
-  dividerText: { color: '#8FA3CC', fontSize: 12, whiteSpace: 'nowrap', letterSpacing: '0.05em' },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#4B5E8A',
+  },
+  input: {
+    border: '1.5px solid #D6E4FF',
+    borderRadius: 10,
+    padding: '11px 14px',
+    fontSize: 14,
+    color: '#0F1C3F',
+    outline: 'none',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+    width: '100%',
+  },
+  submitBtn: {
+    background: '#1D6FEB',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 10,
+    padding: '13px 14px',
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
   googleWrap: {
     display: 'flex',
     justifyContent: 'center',
     width: '100%',
+    marginTop: 4,
   },
   hint: {
     color: '#8FA3CC',

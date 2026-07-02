@@ -66,8 +66,14 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const data = await authService.register(formData);
+      const nextUser = data.user ?? data;
       if (isMountedRef.current) {
-        setUser(data.user ?? data);
+        setUser(nextUser);
+      }
+      // Persist session so it survives a page refresh, same as googleLogin
+      localStorage.setItem('tt_user', JSON.stringify(nextUser));
+      if (data.token) {
+        localStorage.setItem('tt_token', data.token);
       }
       return data;
     } catch (err) {
@@ -82,8 +88,14 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const data = await authService.login(credentials);
+      const nextUser = data.user ?? data;
       if (isMountedRef.current) {
-        setUser(data.user ?? data);
+        setUser(nextUser);
+      }
+      // Persist session so it survives a page refresh, same as googleLogin
+      localStorage.setItem('tt_user', JSON.stringify(nextUser));
+      if (data.token) {
+        localStorage.setItem('tt_token', data.token);
       }
       return data;
     } catch (err) {
@@ -93,19 +105,19 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // ── Google Auth (FIXED) ────────────────────────────────────────────────────
-  // Now accepts { credential, isSignUp, role } instead of a raw token string
+  // ── Google Auth ────────────────────────────────────────────────────────────
+  // Accepts { credential, isSignUp, role } instead of a raw token string
   const googleLogin = useCallback(async ({ credential, isSignUp = false, role } = {}) => {
     setError(null);
     try {
       const data = await authService.googleAuth({ credential, isSignUp, role });
       if (isMountedRef.current) {
         setUser(data.user ?? data);
-        // Cache user locally so session restores on page refresh
-        localStorage.setItem('tt_user', JSON.stringify(data.user ?? data));
-        if (data.token) {
-          localStorage.setItem('tt_token', data.token);
-        }
+      }
+      // Cache user locally so session restores on page refresh
+      localStorage.setItem('tt_user', JSON.stringify(data.user ?? data));
+      if (data.token) {
+        localStorage.setItem('tt_token', data.token);
       }
       return data;
     } catch (err) {

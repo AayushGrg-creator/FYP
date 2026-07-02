@@ -2,16 +2,18 @@
 
 /**
  * auth.service.js
- * TaskTide – Google OAuth onboarding service
+ * TaskTide – Authentication service (Google OAuth + email/password)
  *
  * Responsibilities
  * ────────────────
  *  - Verify Google ID tokens via google-auth-library
+ *  - Hash/verify passwords for email/password accounts via bcryptjs
  *  - Extract normalised identity payloads
  *  - Upsert User + role-specific profile documents in MongoDB
  *  - Enforce account status checks on sign-in
  */
 
+const bcrypt              = require('bcryptjs');
 const { OAuth2Client }    = require('google-auth-library');
 const User                = require('../models/User');
 const FreelancerProfile   = require('../models/FreelancerProfile');
@@ -26,6 +28,9 @@ const GOOGLE_ISSUERS = ['accounts.google.com', 'https://accounts.google.com'];
 
 // One shared OAuth2Client instance — stateless, safe to reuse across requests
 const oauthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// bcrypt cost factor — 12 is a solid default (higher = slower/safer)
+const SALT_ROUNDS = 12;
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -103,7 +108,7 @@ function _extractIdentity(payload) {
  * Idempotent — safe to call multiple times; never double-creates.
  *
  * @param {string} userId    - MongoDB ObjectId string of the parent User
- * @param {object} identity  - Normalised identity from _extractIdentity()
+ * @param {object} identity  - Normalised identity ({ name, picture, ... })
  */
 async function _bootstrapFreelancerProfile(userId, identity) {
   const existing = await FreelancerProfile.findOne({ userId });
@@ -151,7 +156,33 @@ async function _bootstrapClientProfile(userId, identity) {
   return profile;
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+/**
+ * _bootstrapProfileForRole
+ * ─────────────────────────
+ * Shared dispatcher used by both Google sign-up and email/password
+ * registration so the two flows can't drift apart.
+ *
+ * @param {string} role   - 'client' | 'freelancer'
+ * @param {string} userId
+ * @param {object} identity - anything with { name, picture }
+ */
+async function _bootstrapProfileForRole(role, userId, identity) {
+  try {
+    if (role === 'freelancer') {
+      await _bootstrapFreelancerProfile(userId, identity);
+    } else {
+      await _bootstrapClientProfile(userId, identity);
+    }
+  } catch (profileErr) {
+    logger.error('Profile bootstrap failed — user created but profile missing', {
+      userId,
+      error: profileErr.message,
+    });
+    // Do not rethrow — user record exists; profile can be rebuilt later
+  }
+}
+
+// ─── Public API — Google OAuth ─────────────────────────────────────────────────
 
 /**
  * verifyAndExtract
@@ -210,17 +241,17 @@ async function upsertUser(identity, isSignUp, role) {
       );
     }
 
-    // ✅ NEW: Block suspended accounts from signing in
+    // Block suspended accounts from signing in
     if (user.accountStatus === 'suspended') {
       throw new Error(
         'ACCOUNT_SUSPENDED: This account has been suspended. Please contact support.'
       );
     }
 
-    // Refresh mutable fields — ✅ using correct User.js field names
+    // Refresh mutable fields
     user.avatarUrl   = picture || user.avatarUrl;
-    user.lastLogin   = new Date();        // ✅ fixed: was lastLoginAt
-    user.isVerified  = emailVerified;     // ✅ fixed: was emailVerified
+    user.lastLogin   = new Date();
+    user.isVerified  = emailVerified;
     await user.save();
 
     logger.info('User signed in via Google', { userId: user._id, email });
@@ -249,25 +280,24 @@ async function upsertUser(identity, isSignUp, role) {
       userId: user._id,
     });
 
-    user.lastLogin     = new Date();    // ✅ fixed: was lastLoginAt
-    user._wasExisting  = true;          // ✅ transient flag — tells controller this was a re-login
+    user.lastLogin     = new Date();
+    user._wasExisting  = true;  // transient flag — tells controller this was a re-login
     await user.save();
     return user;
   }
 
   // ── Create new User document ──────────────────────────────────────────────
-  // ✅ ALL field names now aligned with User.js schema
   user = await User.create({
     googleId,
     email,
-    isVerified   : emailVerified,   // ✅ fixed: was emailVerified
-    name,                           // ✅ added: was missing from schema
-    avatarUrl    : picture,         // ✅ added: was missing from schema
+    isVerified   : emailVerified,
+    name,
+    avatarUrl    : picture,
     role,
-    authProvider : 'google',        // ✅ added: was missing from schema
-    trustScore   : 0,               // ✅ added: was missing from schema
-    lastLogin    : new Date(),      // ✅ fixed: was lastLoginAt
-    password     : null,            // ✅ fixed: was passwordHash
+    authProvider : 'google',
+    trustScore   : 0,
+    lastLogin    : new Date(),
+    password     : null,
   });
 
   logger.info('New user created via Google OAuth', {
@@ -278,21 +308,115 @@ async function upsertUser(identity, isSignUp, role) {
 
   // ── Bootstrap role-specific profile ──────────────────────────────────────
   // Errors are caught and logged but do not fail the sign-up response.
-  // The profile can be rebuilt later if creation fails here.
-  try {
-    if (role === 'freelancer') {
-      await _bootstrapFreelancerProfile(user._id.toString(), identity);
-    } else {
-      await _bootstrapClientProfile(user._id.toString(), identity);
-    }
-  } catch (profileErr) {
-    logger.error('Profile bootstrap failed — user created but profile missing', {
-      userId : user._id,
-      error  : profileErr.message,
-    });
-    // Do not rethrow — user record exists; profile can be rebuilt later
+  await _bootstrapProfileForRole(role, user._id.toString(), { name, picture });
+
+  return user;
+}
+
+// ─── Public API — Email/password ───────────────────────────────────────────────
+
+/**
+ * registerUser
+ * ────────────
+ * Create a new User document from name/email/password/role.
+ *
+ * Rules
+ * ─────
+ *  • Email is unique across BOTH auth providers — a Google account and a
+ *    local account can't share an email. Throws EMAIL_ALREADY_EXISTS if taken.
+ *  • Password is hashed with bcrypt before storage — never stored in plaintext.
+ *  • Bootstraps the matching role profile, same as the Google sign-up path.
+ *
+ * @param  {{ name: string, email: string, password: string, role: string }} data
+ * @returns {Promise<import('../models/User')>}  The newly-created User document
+ * @throws  {Error}  EMAIL_ALREADY_EXISTS | INVALID_ROLE
+ */
+async function registerUser({ name, email, password, role }) {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  if (!role || !VALID_ROLES.includes(role)) {
+    throw new Error(
+      `INVALID_ROLE: role must be one of [${VALID_ROLES.join(', ')}]. Received: "${role}".`
+    );
   }
 
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing) {
+    throw new Error('EMAIL_ALREADY_EXISTS: An account with this email already exists.');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+  const user = await User.create({
+    email        : normalizedEmail,
+    password     : hashedPassword,
+    name         : name.trim(),
+    avatarUrl    : null,
+    role,
+    authProvider : 'local',
+    isVerified   : false,
+    trustScore   : 0,
+    lastLogin    : new Date(),
+  });
+
+  logger.info('New user created via email/password', {
+    userId : user._id,
+    role,
+    email  : normalizedEmail,
+  });
+
+  // Bootstrap role-specific profile — mirrors the Google sign-up path
+  await _bootstrapProfileForRole(role, user._id.toString(), { name: user.name, picture: null });
+
+  return user;
+}
+
+/**
+ * authenticateUser
+ * ────────────────
+ * Verify email/password credentials and return the matching User document.
+ *
+ * Rules
+ * ─────
+ *  • Deliberately vague on failure (INVALID_CREDENTIALS) — never reveals
+ *    whether the email or the password was wrong.
+ *  • Accounts created via Google have password = null; attempting a
+ *    password login on one throws GOOGLE_ONLY_ACCOUNT so the frontend can
+ *    point the user to the Google button instead.
+ *  • Blocks suspended accounts, same as the Google sign-in path.
+ *
+ * @param  {{ email: string, password: string }} credentials
+ * @returns {Promise<import('../models/User')>}  The authenticated User document
+ * @throws  {Error}  INVALID_CREDENTIALS | GOOGLE_ONLY_ACCOUNT | ACCOUNT_SUSPENDED
+ */
+async function authenticateUser({ email, password }) {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Need the password hash back for comparison — default schema likely
+  // excludes it via select:false, so explicitly re-include it here.
+  const user = await User.findOne({ email: normalizedEmail }).select('+password');
+
+  if (!user) {
+    throw new Error('INVALID_CREDENTIALS: No account found for this email/password combination.');
+  }
+
+  if (!user.password) {
+    throw new Error('GOOGLE_ONLY_ACCOUNT: This account was created via Google sign-in and has no password set.');
+  }
+
+  if (user.accountStatus === 'suspended') {
+    throw new Error('ACCOUNT_SUSPENDED: This account has been suspended. Please contact support.');
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    throw new Error('INVALID_CREDENTIALS: No account found for this email/password combination.');
+  }
+
+  user.lastLogin = new Date();
+  await user.save();
+
+  logger.info('User authenticated via email/password', { userId: user._id, email: normalizedEmail });
   return user;
 }
 
@@ -308,7 +432,6 @@ async function upsertUser(identity, isSignUp, role) {
  */
 async function findUserById(userId) {
   try {
-    // ✅ fixed: was '-passwordHash', correct field is '-password'
     return await User.findById(userId).select('-password').lean();
   } catch (err) {
     logger.error('findUserById failed', { userId, error: err.message });
@@ -321,5 +444,7 @@ async function findUserById(userId) {
 module.exports = {
   verifyAndExtract,
   upsertUser,
+  registerUser,
+  authenticateUser,
   findUserById,
 };

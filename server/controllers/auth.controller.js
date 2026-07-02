@@ -6,6 +6,8 @@
  *
  * Handlers
  * ────────
+ *  register       POST /api/auth/register
+ *  login          POST /api/auth/login
  *  googleSignIn   POST /api/auth/google
  *  checkSession   GET  /api/auth/session
  *  logout         POST /api/auth/logout
@@ -37,7 +39,246 @@ function _resolveStatus(err) {
   return ERROR_STATUS_MAP[code] || 500;
 }
 
+/**
+ * _sanitizeUser
+ * ─────────────
+ * Strips a Mongo user document down to the fields safe to send to the client.
+ * Shared by register/login/googleSignIn so the response shape stays identical
+ * across all three auth entry points.
+ *
+ * @param {object} user
+ */
+function _sanitizeUser(user) {
+  return {
+    userId        : user._id,
+    name          : user.name,
+    email         : user.email,
+    role          : user.role,
+    avatarUrl     : user.avatarUrl,
+    trustScore    : user.trustScore,
+    emailVerified : user.isVerified,
+    authProvider  : user.authProvider,
+  };
+}
+
 // ─── Handlers ─────────────────────────────────────────────────────────────────
+
+/**
+ * register
+ * ────────
+ * Handles email/password account creation.
+ *
+ * Request body
+ * ─────────────
+ * {
+ *   name     : string
+ *   email    : string
+ *   password : string
+ *   role     : 'client' | 'freelancer'
+ * }
+ *
+ * Success response  201
+ * ──────────────────────
+ * Sets httpOnly tt_session cookie.
+ * {
+ *   success : true,
+ *   message : string,
+ *   user    : { userId, name, email, role, avatarUrl, trustScore, emailVerified }
+ * }
+ *
+ * @param {import('express').Request}      req
+ * @param {import('express').Response}     res
+ * @param {import('express').NextFunction} next
+ */
+async function register(req, res, next) {
+  try {
+    const { name, email, password, role } = req.body;
+
+    // ── 1. Input validation ─────────────────────────────────────────────────
+    // (Field-level checks already ran in auth.routes.js validation chain —
+    //  this is a defensive second layer in case the controller is ever
+    //  called directly, e.g. from a test.)
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({
+        success : false,
+        message : 'name, email, password and role are all required.',
+      });
+    }
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        success : false,
+        message : `role must be one of: ${VALID_ROLES.join(', ')}.`,
+      });
+    }
+
+    // ── 2. Create the user (hashing + uniqueness handled in the service) ────
+    let user;
+    try {
+      user = await authService.registerUser({ name, email, password, role });
+    } catch (registerErr) {
+      const status = _resolveStatus(registerErr);
+
+      // EMAIL_TAKEN → 409, friendly message
+      if (registerErr.message.startsWith('EMAIL_TAKEN')) {
+        return res.status(409).json({
+          success : false,
+          message : 'An account with this email already exists. Try logging in instead.',
+        });
+      }
+
+      logger.error('User registration failed', { email, error: registerErr.message });
+
+      return res.status(status).json({
+        success : false,
+        message : registerErr.message.split(':').slice(1).join(':').trim()
+          || 'Registration failed.',
+      });
+    }
+
+    // ── 3. Sign JWT using "sub" claim and attach secure cookie ──────────────
+    const tokenPayload = {
+      sub   : user._id.toString(),
+      role  : user.role,
+      email : user.email,
+    };
+
+    const token = tokenHelper.attachTokenCookie(res, tokenPayload);
+
+    logger.info('Email/password registration successful', {
+      userId : user._id,
+      role   : user.role,
+      ip     : req.ip,
+    });
+
+    const responseBody = {
+      success : true,
+      message : `Welcome to TaskTide, ${user.name}! Your ${user.role} account is ready.`,
+      user    : _sanitizeUser(user),
+    };
+
+    // ✅ Only expose raw token outside production (Postman / dev tooling)
+    // Browser clients rely solely on the httpOnly cookie
+    if (!require('../config/env').IS_PROD) {
+      responseBody.token = token;
+    }
+
+    return res.status(201).json(responseBody);
+
+  } catch (unexpectedErr) {
+    logger.error('Unexpected error in register', { error: unexpectedErr.message });
+    next(unexpectedErr);
+  }
+}
+
+/**
+ * login
+ * ─────
+ * Handles email/password authentication.
+ *
+ * Request body
+ * ─────────────
+ * {
+ *   email    : string
+ *   password : string
+ * }
+ *
+ * Success response  200
+ * ──────────────────────
+ * Sets httpOnly tt_session cookie.
+ * {
+ *   success : true,
+ *   message : string,
+ *   user    : { userId, name, email, role, avatarUrl, trustScore, emailVerified }
+ * }
+ *
+ * @param {import('express').Request}      req
+ * @param {import('express').Response}     res
+ * @param {import('express').NextFunction} next
+ */
+async function login(req, res, next) {
+  try {
+    const { email, password } = req.body;
+
+    // ── 1. Input validation ─────────────────────────────────────────────────
+    if (!email || !password) {
+      return res.status(400).json({
+        success : false,
+        message : 'email and password are required.',
+      });
+    }
+
+    // ── 2. Verify credentials ────────────────────────────────────────────────
+    let user;
+    try {
+      user = await authService.authenticateUser({ email, password });
+    } catch (loginErr) {
+      const status = _resolveStatus(loginErr);
+
+      // INVALID_CREDENTIALS → 401, deliberately vague (don't reveal which field was wrong)
+      if (loginErr.message.startsWith('INVALID_CREDENTIALS')) {
+        return res.status(401).json({
+          success : false,
+          message : 'Invalid email or password.',
+        });
+      }
+
+      // GOOGLE_ONLY_ACCOUNT → account was created via Google, has no password
+      if (loginErr.message.startsWith('GOOGLE_ONLY_ACCOUNT')) {
+        return res.status(400).json({
+          success : false,
+          message : 'This account uses Google sign-in. Please continue with Google instead.',
+        });
+      }
+
+      // ACCOUNT_SUSPENDED → 403 with clear message
+      if (loginErr.message.startsWith('ACCOUNT_SUSPENDED')) {
+        return res.status(403).json({
+          success : false,
+          message : 'Your account has been suspended. Please contact support.',
+        });
+      }
+
+      logger.warn('Login attempt failed', { email, error: loginErr.message, ip: req.ip });
+
+      return res.status(status).json({
+        success : false,
+        message : loginErr.message.split(':').slice(1).join(':').trim()
+          || 'Login failed.',
+      });
+    }
+
+    // ── 3. Sign JWT using "sub" claim and attach secure cookie ──────────────
+    const tokenPayload = {
+      sub   : user._id.toString(),
+      role  : user.role,
+      email : user.email,
+    };
+
+    const token = tokenHelper.attachTokenCookie(res, tokenPayload);
+
+    logger.info('Email/password login successful', {
+      userId : user._id,
+      role   : user.role,
+      ip     : req.ip,
+    });
+
+    const responseBody = {
+      success : true,
+      message : `Welcome back, ${user.name}!`,
+      user    : _sanitizeUser(user),
+    };
+
+    if (!require('../config/env').IS_PROD) {
+      responseBody.token = token;
+    }
+
+    return res.status(200).json(responseBody);
+
+  } catch (unexpectedErr) {
+    logger.error('Unexpected error in login', { error: unexpectedErr.message });
+    next(unexpectedErr);
+  }
+}
 
 /**
  * googleSignIn
@@ -175,16 +416,7 @@ async function googleSignIn(req, res, next) {
     const responseBody = {
       success : true,
       message,
-      user: {
-        userId        : user._id,
-        name          : user.name,
-        email         : user.email,
-        role          : user.role,
-        avatarUrl     : user.avatarUrl,
-        trustScore    : user.trustScore,
-        emailVerified : user.isVerified,   // ✅ aligned with User.js field name
-        authProvider  : user.authProvider,
-      },
+      user    : _sanitizeUser(user),
     };
 
     // ✅ Only expose raw token outside production (Postman / dev tooling)
@@ -289,16 +521,7 @@ async function checkSession(req, res, next) {
     return res.status(200).json({
       success       : true,
       authenticated : true,
-      user: {
-        userId        : user._id,
-        name          : user.name,
-        email         : user.email,
-        role          : user.role,
-        avatarUrl     : user.avatarUrl,
-        trustScore    : user.trustScore,
-        emailVerified : user.isVerified,    // ✅ aligned with User.js field name
-        authProvider  : user.authProvider,
-      },
+      user          : _sanitizeUser(user),
     });
 
   } catch (unexpectedErr) {
@@ -362,6 +585,8 @@ async function logout(req, res, next) {
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
 module.exports = {
+  register,
+  login,
   googleSignIn,
   checkSession,
   logout,

@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 
-export default function ProtectedRoute({ allowedRoles = [] }) {
+export default function ProtectedRoute({ roles = [] }) {
   const { user, loading } = useAuth();
 
   // ── Still checking auth state ──────────────────────────────────────────────
@@ -21,10 +21,9 @@ export default function ProtectedRoute({ allowedRoles = [] }) {
     return <Navigate to="/login" replace />;
   }
 
-  // ── Logged in but wrong role → send to their own dashboard ────────────────
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    const fallback = user.role === 'client' ? '/dashboard/client' : '/dashboard/freelancer';
-    return <Navigate to={fallback} replace />;
+  // ── Logged in but wrong role → send back to their dashboard ───────────────
+  if (roles.length > 0 && !roles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   // ── All checks passed → render the child route ────────────────────────────
