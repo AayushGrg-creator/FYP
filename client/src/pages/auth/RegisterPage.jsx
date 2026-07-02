@@ -4,11 +4,19 @@ import { useAuth } from '../../context/AuthContext';
 
 const RegisterPage = () => {
   const navigate        = useNavigate();
-  const { googleLogin } = useAuth();
+  const { googleLogin, register } = useAuth();
 
-  const [role, setRole]     = useState('freelancer');
-  const [agreed, setAgreed] = useState(false);
-  const [error, setError]   = useState('');
+  const [role, setRole]         = useState('freelancer');
+  const [agreed, setAgreed]     = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
+
+  const [form, setForm] = useState({
+    name:            '',
+    email:           '',
+    password:        '',
+    confirmPassword: '',
+  });
 
   const agreedRef      = useRef(agreed);
   const roleRef        = useRef(role);
@@ -61,6 +69,48 @@ const RegisterPage = () => {
     }
   }, []);
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!agreed) {
+      setError('You must agree to the Terms & Conditions');
+      return;
+    }
+    if (!form.name.trim() || !form.email.trim() || !form.password || !form.confirmPassword) {
+      setError('Please fill in all fields');
+      return;
+    }
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await register({
+        name:     form.name.trim(),
+        email:    form.email.trim(),
+        password: form.password,
+        role,
+      });
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={s.page}>
       {/* Background decorations */}
@@ -78,7 +128,7 @@ const RegisterPage = () => {
           </div>
         )}
 
-        <div style={s.form}>
+        <form style={s.form} onSubmit={handleRegister}>
 
           {/* Account Type */}
           <div style={s.accountSection}>
@@ -131,6 +181,59 @@ const RegisterPage = () => {
             </div>
           </div>
 
+          {/* Email / Password fields */}
+          <div style={s.fieldGroup}>
+            <label style={s.fieldLabel}>Full Name</label>
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="Your full name"
+              style={s.input}
+              autoComplete="name"
+            />
+          </div>
+
+          <div style={s.fieldGroup}>
+            <label style={s.fieldLabel}>Email</label>
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+              style={s.input}
+              autoComplete="email"
+            />
+          </div>
+
+          <div style={s.fieldGroup}>
+            <label style={s.fieldLabel}>Password</label>
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="At least 6 characters"
+              style={s.input}
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div style={s.fieldGroup}>
+            <label style={s.fieldLabel}>Confirm Password</label>
+            <input
+              type="password"
+              name="confirmPassword"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              placeholder="Re-enter your password"
+              style={s.input}
+              autoComplete="new-password"
+            />
+          </div>
+
           {/* Terms */}
           <label style={s.termsLabel}>
             <input
@@ -143,21 +246,14 @@ const RegisterPage = () => {
             <Link to="/terms" style={s.termsLink}>Terms &amp; Conditions</Link>
           </label>
 
-          {/* Divider */}
-          <div style={s.divider}>
-            <div style={s.dividerLine} />
-            <span style={s.dividerText}>sign up with</span>
-            <div style={s.dividerLine} />
-          </div>
+          <button type="submit" style={s.submitBtn} disabled={loading}>
+            {loading ? 'Creating account...' : 'Sign Up'}
+          </button>
 
           {/* Google GSI Button */}
           <div id="google-btn-register" style={s.googleWrap} />
 
-          <p style={s.hint}>
-            Select your account type and agree to terms before clicking Sign up with Google.
-          </p>
-
-        </div>
+        </form>
 
         <p style={s.footerText}>
           Already have an account?{' '}
@@ -303,6 +399,27 @@ const s = {
     lineHeight: 1.5,
     display: 'block',
   },
+  fieldGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#4B5E8A',
+  },
+  input: {
+    border: '1.5px solid #D6E4FF',
+    borderRadius: 10,
+    padding: '11px 14px',
+    fontSize: 14,
+    color: '#0F1C3F',
+    outline: 'none',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+    width: '100%',
+  },
   termsLabel: {
     display: 'flex',
     alignItems: 'center',
@@ -314,17 +431,18 @@ const s = {
   },
   checkbox: { width: 16, height: 16, accentColor: '#1D6FEB', cursor: 'pointer', flexShrink: 0 },
   termsLink: { color: '#1D6FEB', fontWeight: 600, textDecoration: 'none' },
-  divider: { display: 'flex', alignItems: 'center', gap: 12 },
-  dividerLine: { flex: 1, height: 1, background: '#D6E4FF' },
-  dividerText: { color: '#8FA3CC', fontSize: 12, whiteSpace: 'nowrap', letterSpacing: '0.05em' },
-  googleWrap: { display: 'flex', justifyContent: 'center', width: '100%' },
-  hint: {
-    color: '#8FA3CC',
-    fontSize: 12,
-    textAlign: 'center',
-    margin: 0,
-    lineHeight: 1.5,
+  submitBtn: {
+    background: '#1D6FEB',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 10,
+    padding: '13px 14px',
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
   },
+  googleWrap: { display: 'flex', justifyContent: 'center', width: '100%', marginTop: 4 },
   footerText: { textAlign: 'center', marginTop: 24, fontSize: 14, color: '#4B5E8A' },
   footerLink: { color: '#1D6FEB', fontWeight: 700, textDecoration: 'none' },
 };
