@@ -21,6 +21,12 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000', // ← must match your Express PORT in server/.env
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

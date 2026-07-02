@@ -15,38 +15,29 @@ export const AuthContext = createContext({
 });
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    return authService.getCachedUser() || null;
-  });
+  // No synchronous cache read — cookie is httpOnly, so JS can't peek at it
+  // ahead of time. We start as null/loading and resolve via getMe() below.
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const isMountedRef = useRef(true);
 
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     const restoreSession = async () => {
-      const token = localStorage.getItem('tt_token');
-      const cached = authService.getCachedUser();
-
-      if (!token || !cached) {
-        if (isMountedRef.current) setLoading(false);
-        return;
-      }
-
       try {
-        const fresh = await authService.getMe();
-        const freshUser = fresh.user ?? fresh;
-        
+        // getMe() sends the httpOnly tt_session cookie automatically
+        // (credentials: 'include' in authService) — no token needed.
+        const data = await authService.getMe();
+        const freshUser = data.user ?? data;
         if (isMountedRef.current) {
           setUser(freshUser);
-          localStorage.setItem('tt_user', JSON.stringify(freshUser));
         }
       } catch (err) {
-        console.error('Session expiration or token verification failure:', err);
+        // 401/403 here just means "not logged in" — not a real error
         if (isMountedRef.current) {
-          authService.logout();
           setUser(null);
         }
       } finally {
@@ -70,14 +61,9 @@ export function AuthProvider({ children }) {
       if (isMountedRef.current) {
         setUser(nextUser);
       }
-      // Persist session so it survives a page refresh, same as googleLogin
-      localStorage.setItem('tt_user', JSON.stringify(nextUser));
-      if (data.token) {
-        localStorage.setItem('tt_token', data.token);
-      }
       return data;
     } catch (err) {
-      const msg = err.response?.data?.message || 'Registration routine failed.';
+      const msg = err.message || 'Registration routine failed.';
       if (isMountedRef.current) setError(msg);
       throw new Error(msg);
     }
@@ -92,47 +78,43 @@ export function AuthProvider({ children }) {
       if (isMountedRef.current) {
         setUser(nextUser);
       }
-      // Persist session so it survives a page refresh, same as googleLogin
-      localStorage.setItem('tt_user', JSON.stringify(nextUser));
-      if (data.token) {
-        localStorage.setItem('tt_token', data.token);
-      }
       return data;
     } catch (err) {
-      const msg = err.response?.data?.message || 'Authentication sequence failed.';
+      const msg = err.message || 'Authentication sequence failed.';
       if (isMountedRef.current) setError(msg);
       throw new Error(msg);
     }
   }, []);
 
   // ── Google Auth ────────────────────────────────────────────────────────────
-  // Accepts { credential, isSignUp, role } instead of a raw token string
   const googleLogin = useCallback(async ({ credential, isSignUp = false, role } = {}) => {
     setError(null);
     try {
       const data = await authService.googleAuth({ credential, isSignUp, role });
+      const nextUser = data.user ?? data;
       if (isMountedRef.current) {
-        setUser(data.user ?? data);
-      }
-      // Cache user locally so session restores on page refresh
-      localStorage.setItem('tt_user', JSON.stringify(data.user ?? data));
-      if (data.token) {
-        localStorage.setItem('tt_token', data.token);
+        setUser(nextUser);
       }
       return data;
     } catch (err) {
-      const msg = err.response?.data?.message || 'OAuth identity validation failed.';
+      const msg = err.message || 'OAuth identity validation failed.';
       if (isMountedRef.current) setError(msg);
       throw new Error(msg);
     }
   }, []);
 
   // ── Logout ─────────────────────────────────────────────────────────────────
-  const logout = useCallback(() => {
-    authService.logout();
-    if (isMountedRef.current) {
-      setUser(null);
-      setError(null);
+  const logout = useCallback(async () => {
+    try {
+      await authService.logout(); // tells the server to clear the tt_session cookie
+    } catch (err) {
+      // Clear local state regardless — user intent is to log out either way
+      console.error('Logout request failed:', err);
+    } finally {
+      if (isMountedRef.current) {
+        setUser(null);
+        setError(null);
+      }
     }
   }, []);
 
@@ -141,7 +123,6 @@ export function AuthProvider({ children }) {
     if (!updated) return;
     if (isMountedRef.current) {
       setUser(updated);
-      localStorage.setItem('tt_user', JSON.stringify(updated));
     }
   }, []);
 

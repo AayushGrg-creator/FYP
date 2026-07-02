@@ -7,44 +7,16 @@ import api from './api';
  * job board infrastructure.
  */
 export const jobService = {
-  /**
-   * Fetch paginated list of jobs with optional search filters
-   * @param {Object} params - Query parameters (page, status, skills, q)
-   */
   getAll: (params = {}) => api.get('/jobs', { params }),
-
-  /**
-   * Retrieve specific job metadata
-   * @param {string} id - Target job document ID
-   */
   getById: (id) => api.get(`/jobs/${id}`),
-
-  /**
-   * Submit new job posting
-   * @param {Object} jobData - Validated job schema payload
-   */
+  getMy: (params = {}) => api.get('/jobs/my', { params }),   // ← add this line
   create: (jobData) => api.post('/jobs', jobData),
-
-  /**
-   * Update existing job document
-   * @param {string} id - Target job document ID
-   * @param {Object} jobData - Delta payload for update
-   */
   update: (id, jobData) => api.put(`/jobs/${id}`, jobData),
-
-  /**
-   * Remove job listing
-   * @param {string} id - Target job document ID
-   */
   delete: (id) => api.delete(`/jobs/${id}`),
-
-  /**
-   * Submit a bid/proposal for a specific job
-   * @param {string} jobId 
-   * @param {Object} proposalData 
-   */
-  submitProposal: (jobId, proposalData) => 
+  submitProposal: (jobId, proposalData) =>
     api.post(`/jobs/${jobId}/proposals`, proposalData),
 };
-
+// ── Named export wrappers (used by ClientDashboard.jsx) ─────────────────────
+export const getMyJobs        = (params = {}) => jobService.getAll(params); // placeholder, replaced below
+export const updateJobStatus  = (id, status)   => jobService.update(id, { status });
 export default jobService;

@@ -7,11 +7,10 @@ import DashboardLayout from './layouts/DashboardLayout';
 
 // Pages
 import FreelancerProfilePage from './pages/profile/FreelancerProfilePage';
-import FreelancerDashboard from './pages/dashboard/FreelancerDashboard';
+import RoleDashboard from './pages/dashboard/RoleDashboard';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
-import Dashboard from './pages/dashboard/Dashboard';
 
 // Footer Pages
 import HowToHire from './pages/HowToHire';
@@ -48,7 +47,7 @@ function App() {
           {/* Protected Routes - Authenticated Users */}
           <Route element={<ProtectedRoute />}>
             <Route element={<DashboardLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={<RoleDashboard />} />
               <Route path="/profile" element={<FreelancerProfilePage />} />
             </Route>
           </Route>

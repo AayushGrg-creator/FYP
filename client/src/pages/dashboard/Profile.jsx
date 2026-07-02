@@ -8,12 +8,13 @@ import { useNavigate } from 'react-router-dom';
  * Displays user information and allows profile editing
  */
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    name: '',
     email: '',
     bio: '',
     avatar: '',
@@ -24,11 +25,10 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
+        name: user.name || '',
         email: user.email || '',
         bio: user.bio || '',
-        avatar: user.avatar || '',
+        avatar: user.avatarUrl || '',
         location: user.location || '',
         phone: user.phone || '',
       });
@@ -45,13 +45,19 @@ export default function Profile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
+    setSaveError('');
     try {
-      // API call to update profile would go here
+      // TODO: replace with real API call once backend profile endpoint is confirmed
+      // const updated = await profileService.updateProfile(formData);
+      // updateUser(updated.user);
       console.log('Updating profile:', formData);
       setIsEditing(false);
-      // Show success message
     } catch (error) {
       console.error('Error updating profile:', error);
+      setSaveError(error.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -75,6 +81,10 @@ export default function Profile() {
         </button>
       </div>
 
+      {saveError && (
+        <div style={{ color: '#DC2626', marginBottom: 16 }}>{saveError}</div>
+      )}
+
       <div className="profile-container">
         {/* Avatar Section */}
         <div className="profile-avatar-section">
@@ -86,7 +96,7 @@ export default function Profile() {
             />
           ) : (
             <div className="profile-avatar-placeholder">
-              {formData.firstName?.charAt(0)?.toUpperCase()}
+              {formData.name?.charAt(0)?.toUpperCase()}
             </div>
           )}
         </div>
@@ -95,21 +105,11 @@ export default function Profile() {
         {isEditing ? (
           <form onSubmit={handleSubmit} className="profile-form">
             <div className="form-group">
-              <label>First Name</label>
+              <label>Full Name</label>
               <input
                 type="text"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Last Name</label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
+                name="name"
+                value={formData.name}
                 onChange={handleInputChange}
               />
             </div>
@@ -154,17 +154,15 @@ export default function Profile() {
               />
             </div>
 
-            <button type="submit" className="save-btn">
-              Save Changes
+            <button type="submit" className="save-btn" disabled={saving}>
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </form>
         ) : (
           <div className="profile-view">
             <div className="profile-item">
               <span className="label">Name:</span>
-              <span className="value">
-                {formData.firstName} {formData.lastName}
-              </span>
+              <span className="value">{formData.name}</span>
             </div>
 
             <div className="profile-item">

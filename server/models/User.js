@@ -20,10 +20,17 @@
  *  - email      → unique (auto-indexed by unique: true — no manual index needed)
  *  - googleId   → sparse unique (null for local users, unique for OAuth users)
  *  - accountStatus → for admin queries filtering active/suspended users
+ *
+ * Password hashing
+ * ─────────────────
+ *  Hashing happens ONCE, here, via the pre('save') hook below.
+ *  auth.service.js must pass the PLAINTEXT password to User.create()/save() —
+ *  never pre-hash it there, or passwords get double-hashed and login breaks.
  */
 
 const mongoose = require('mongoose');
-const bcrypt   = require('bcrypt');
+const bcrypt   = require('bcryptjs'); // ✅ FIXED: was 'bcrypt' (native module, not installed)
+                                       //    bcryptjs is pure-JS, same API, already used elsewhere
 
 const userSchema = new mongoose.Schema(
   {
@@ -37,7 +44,6 @@ const userSchema = new mongoose.Schema(
       match     : [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
     },
 
-    // ✅ ADDED — required by auth.service.js; was silently dropped before
     name: {
       type     : String,
       required : [true, 'Name is required'],
@@ -68,13 +74,11 @@ const userSchema = new mongoose.Schema(
       select : false,      // never expose internal OAuth identifier in responses
     },
 
-    // ✅ ADDED — required by auth.service.js and returned in all API responses
     avatarUrl: {
       type    : String,
       default : null,
     },
 
-    // ✅ ADDED — distinguishes OAuth vs local users for conditional logic
     authProvider: {
       type    : String,
       enum    : {
@@ -85,7 +89,6 @@ const userSchema = new mongoose.Schema(
     },
 
     // ── Trust & verification ──────────────────────────────────────────────────
-    // ✅ ADDED — required by auth.service.js and returned in API responses
     trustScore: {
       type    : Number,
       default : 0,
@@ -120,8 +123,6 @@ const userSchema = new mongoose.Schema(
   {
     timestamps : true,   // createdAt, updatedAt
 
-    // ── Prevent credentials from leaking over API responses ──────────────────
-    // Both toJSON and toObject are covered so lean() and non-lean() are safe.
     toJSON: {
       transform(_doc, ret) {
         delete ret.password;
@@ -148,24 +149,11 @@ const userSchema = new mongoose.Schema(
 
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 
-// ✅ FIXED: removed duplicate userSchema.index({ email: 1 })
-//    The unique:true on the email field already creates this index automatically.
-//    Having both caused a duplicate index warning in Mongoose.
-
-// ✅ ADDED: sparse unique index on googleId
-//    sparse: true means null values (local users) are excluded from the index,
-//    preventing a "duplicate null" unique violation for local auth users.
 userSchema.index({ googleId : 1 }, { unique: true, sparse: true });
-
-// Useful for admin dashboards filtering by account status
 userSchema.index({ accountStatus : 1 });
 
-// ─── Pre-save hook: hash password ────────────────────────────────────────────
+// ─── Pre-save hook: hash password (SINGLE SOURCE OF TRUTH for hashing) ────────
 
-/**
- * Only runs when the password field has been explicitly set or modified.
- * Skipped entirely for Google OAuth users (password === null/undefined).
- */
 userSchema.pre('save', async function hashPassword(next) {
   // Skip if no password field (Google OAuth) or password not modified
   if (!this.password || !this.isModified('password')) {
@@ -183,15 +171,6 @@ userSchema.pre('save', async function hashPassword(next) {
 
 // ─── Instance methods ─────────────────────────────────────────────────────────
 
-/**
- * comparePassword
- * ───────────────
- * Compare a plaintext candidate password against the stored bcrypt hash.
- * Throws if the account has no local password (OAuth-only users).
- *
- * @param  {string} candidate
- * @returns {Promise<boolean>}
- */
 userSchema.methods.comparePassword = async function comparePassword(candidate) {
   if (!this.password) {
     throw new Error('This account does not use password authentication.');
@@ -199,14 +178,6 @@ userSchema.methods.comparePassword = async function comparePassword(candidate) {
   return bcrypt.compare(candidate, this.password);
 };
 
-/**
- * isActive
- * ────────
- * Returns true if the account is in 'active' status.
- * Used as a guard in middleware and service layer checks.
- *
- * @returns {boolean}
- */
 userSchema.methods.isActive = function isActive() {
   return this.accountStatus === 'active';
 };

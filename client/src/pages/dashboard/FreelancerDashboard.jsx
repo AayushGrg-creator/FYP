@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import TrustScoreBadge from '../../components/profile/TrustScoreBadge';
 import { ProfileStrengthMeter } from '../../components/profile/TrustScoreBadge';
 
@@ -29,35 +30,40 @@ const T = {
   shadowMd:    '0 4px 24px rgba(29,111,235,0.12)',
 };
 
-/* ─── Mock hooks ─────────────────────────────────────────────────────── */
-function useMockProfile() {
+/* ─── Real profile hook ──────────────────────────────────────────────────
+   Pulls the actual logged-in user from AuthContext instead of hardcoded
+   mock data. Stats not yet backed by real endpoints default to 0/empty —
+   these get wired up in later project milestones (matching engine,
+   gamification system, reviews).
+   ──────────────────────────────────────────────────────────────────── */
+function useRealProfile() {
+  const { user } = useAuth();
+
   return {
-    name: 'Rajan Thapa',
-    role: 'UI/UX Designer',
-    trustScore: 84,
-    points: 3910,
-    level: 7,
-    completedProjects: 23,
-    activeProjects: 2,
-    earnings: 142500,
-    responseRate: 97,
-    completionRate: 96,
-    avgRating: 4.7,
-    badges: [
-      { slug: 'perfect_ten',    name: 'Perfect Ten',    icon: '🌟', colour: '#EF4444' },
-      { slug: 'fast_responder', name: 'Fast Responder', icon: '🔔', colour: '#8B5CF6' },
-      { slug: 'escrow_expert',  name: 'Escrow Expert',  icon: '🔐', colour: '#00B4D8' },
-      { slug: 'early_bird',     name: 'Early Bird',     icon: '🌅', colour: '#10B981' },
-    ],
+    name: user?.name || 'Freelancer',
+    role: 'Freelancer', // TODO: replace with real profile title field once Profile model supports it
+    trustScore: user?.trustScore ?? 0,
+    points: 0,              // TODO: wire to gamification backend
+    level: 1,               // TODO: wire to gamification backend
+    completedProjects: 0,   // TODO: wire to real Jobs/Proposals query
+    activeProjects: 0,      // TODO: wire to real Jobs/Proposals query
+    earnings: 0,            // TODO: wire to real completed job payments
+    responseRate: 0,        // TODO: compute from real data
+    completionRate: 0,      // TODO: compute from real data
+    avgRating: 0,           // TODO: wire to reviews model
+    badges: [],             // TODO: wire to gamification backend
     completedFields: {
-      avatar: true, bio: true, skills: true,
-      hourlyRate: true, portfolio: true, location: true,
+      avatar: !!user?.avatarUrl,
+      bio: false, skills: false,
+      hourlyRate: false, portfolio: false, location: false,
       phone: false, social: false,
     },
   };
 }
 
 function useMockMatches() {
+  // TODO (Week 3 per project plan): replace with real Smart Matching Engine
+  // output — compare freelancer skills against job.skillsRequired overlap.
   return [
     { id: 'm1', title: 'React Dashboard for FinTech Startup',    matchPct: 94, budget: 85000, category: 'web_development', client: 'Himalayan Fintech', postedAgo: '2h' },
     { id: 'm2', title: 'Mobile App UI Redesign (iOS + Android)',  matchPct: 88, budget: 60000, category: 'ui_ux_design',    client: 'Yeti Apps Ltd',    postedAgo: '5h' },
@@ -306,7 +312,7 @@ function MiniRadial({ value, label, colour = T.accent, size = 72 }) {
 
 /* ─── Main dashboard ─────────────────────────────────────────────────── */
 export default function FreelancerDashboard() {
-  const profile = useMockProfile();
+  const profile = useRealProfile();
   const matches = useMockMatches();
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -426,9 +432,9 @@ export default function FreelancerDashboard() {
                 <div>
                   <SectionLabel>Performance Overview</SectionLabel>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                    <StatCard label="Completed" value={profile.completedProjects} icon="✅" suffix=" jobs" colour={T.success}  delta={12} />
+                    <StatCard label="Completed" value={profile.completedProjects} icon="✅" suffix=" jobs" colour={T.success} />
                     <StatCard label="Active"     value={profile.activeProjects}   icon="🔄" colour={T.accent} />
-                    <StatCard label="Earnings (NPR)" value={profile.earnings}     icon="💰" colour={T.brand}   prefix="₨" delta={8} />
+                    <StatCard label="Earnings (NPR)" value={profile.earnings}     icon="💰" colour={T.brand}   prefix="₨" />
                     <StatCard label="Avg Rating" value={profile.avgRating * 20}   icon="⭐" suffix="%" colour={T.pink} />
                   </div>
                 </div>
@@ -506,11 +512,17 @@ export default function FreelancerDashboard() {
                 {/* Recent badges */}
                 <Card>
                   <SectionLabel>Earned Badges</SectionLabel>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {profile.badges.map((b) => (
-                      <BadgeChip key={b.slug} badge={b} />
-                    ))}
-                  </div>
+                  {profile.badges.length === 0 ? (
+                    <div style={{ fontSize: 12, color: T.textMuted }}>
+                      No badges earned yet — complete jobs to start unlocking achievements.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {profile.badges.map((b) => (
+                        <BadgeChip key={b.slug} badge={b} />
+                      ))}
+                    </div>
+                  )}
                 </Card>
               </div>
             </div>
@@ -549,36 +561,43 @@ export default function FreelancerDashboard() {
                 Your <span style={{ color: T.brand }}>Badges</span>
               </h2>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
-              {profile.badges.map((badge) => (
-                <Card key={badge.slug} style={{ textAlign: 'center', padding: '28px 20px' }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>{badge.icon}</div>
-                  <div style={{
-                    fontFamily: "'Sora', sans-serif",
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: badge.colour,
-                    marginBottom: 6,
-                  }}>
-                    {badge.name}
-                  </div>
-                  <div style={{
-                    width: 48, height: 2,
-                    background: badge.colour,
-                    margin: '0 auto 12px',
-                    opacity: 0.4,
-                    borderRadius: 1,
-                  }} />
-                  <div style={{
-                    fontFamily: "'DM Mono', monospace",
-                    fontSize: 11,
-                    color: T.textMuted,
-                  }}>
-                    Earned · Active
-                  </div>
-                </Card>
-              ))}
-            </div>
+            {profile.badges.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 24px', color: T.textMuted }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🏆</div>
+                <p>No badges earned yet. Complete jobs and build your reputation to unlock achievements.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
+                {profile.badges.map((badge) => (
+                  <Card key={badge.slug} style={{ textAlign: 'center', padding: '28px 20px' }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>{badge.icon}</div>
+                    <div style={{
+                      fontFamily: "'Sora', sans-serif",
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: badge.colour,
+                      marginBottom: 6,
+                    }}>
+                      {badge.name}
+                    </div>
+                    <div style={{
+                      width: 48, height: 2,
+                      background: badge.colour,
+                      margin: '0 auto 12px',
+                      opacity: 0.4,
+                      borderRadius: 1,
+                    }} />
+                    <div style={{
+                      fontFamily: "'DM Mono', monospace",
+                      fontSize: 11,
+                      color: T.textMuted,
+                    }}>
+                      Earned · Active
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

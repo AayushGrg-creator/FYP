@@ -11,6 +11,10 @@ const { protect } = require('../middleware/authMiddleware');
 router.route('/')
   .get(jobController.getAllJobs);
 
+/* Must come BEFORE /:id, or Express will treat "my" as an :id param */
+router.route('/my')
+  .get(protect, jobController.getMyJobs);
+
 router.route('/:id')
   .get(jobController.getJobById);
 

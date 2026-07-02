@@ -29,46 +29,58 @@ const RegisterPage = () => {
   useEffect(() => { navigateRef.current    = navigate;    }, [navigate]);
 
   useEffect(() => {
-    const handleGoogleCredential = async (response) => {
-      setError('');
-      if (!agreedRef.current) {
-        setError('You must agree to the Terms & Conditions');
-        return;
-      }
-      try {
-        await googleLoginRef.current({
-          credential: response.credential,
-          isSignUp:   true,
-          role:       roleRef.current,
-        });
-        navigateRef.current('/dashboard');
-      } catch (err) {
-        setError(err.message || 'Registration failed. Please try again.');
-      }
-    };
+  let cancelled = false;
 
-    const initGoogle = () => {
-      if (!window.google) return;
-      window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        callback:  handleGoogleCredential,
+  const handleGoogleCredential = async (response) => {
+    setError('');
+    if (!agreedRef.current) {
+      setError('You must agree to the Terms & Conditions');
+      return;
+    }
+    try {
+      await googleLoginRef.current({
+        credential: response.credential,
+        isSignUp:   true,
+        role:       roleRef.current,
       });
+      navigateRef.current('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
+    }
+  };
+
+  const initGoogle = () => {
+    if (!window.google || cancelled) return;
+
+    // Always safe to call initialize again with the same config —
+    // but only render the button once, so we don't duplicate it either.
+    window.google.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback:  handleGoogleCredential,
+    });
+
+    const btnContainer = document.getElementById('google-btn-register');
+    if (btnContainer && !btnContainer.hasChildNodes()) {
       window.google.accounts.id.renderButton(
-        document.getElementById('google-btn-register'),
+        btnContainer,
         { theme: 'outline', size: 'large', width: 420, text: 'signup_with' }
       );
-    };
-
-    if (window.google) {
-      initGoogle();
-    } else {
-      const interval = setInterval(() => {
-        if (window.google) { clearInterval(interval); initGoogle(); }
-      }, 100);
-      return () => clearInterval(interval);
     }
-  }, []);
+  };
 
+  if (window.google) {
+    initGoogle();
+  } else {
+    const interval = setInterval(() => {
+      if (window.google) { clearInterval(interval); initGoogle(); }
+    }, 100);
+    return () => { cancelled = true; clearInterval(interval); };
+  }
+
+  return () => { cancelled = true; };
+}, []);
+
+    
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));

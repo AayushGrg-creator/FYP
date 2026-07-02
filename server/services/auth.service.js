@@ -7,42 +7,28 @@
  * Responsibilities
  * ────────────────
  *  - Verify Google ID tokens via google-auth-library
- *  - Hash/verify passwords for email/password accounts via bcryptjs
+ *  - Delegate password hashing to User.js pre('save') hook —
+ *    NEVER hash here, or passwords get double-hashed (see registerUser)
+ *  - Delegate password verification to User.comparePassword()
  *  - Extract normalised identity payloads
  *  - Upsert User + role-specific profile documents in MongoDB
  *  - Enforce account status checks on sign-in
  */
 
-const bcrypt              = require('bcryptjs');
 const { OAuth2Client }    = require('google-auth-library');
 const User                = require('../models/User');
 const FreelancerProfile   = require('../models/FreelancerProfile');
 const ClientProfile       = require('../models/ClientProfile');
 const logger              = require('../config/logger');
-const { VALID_ROLES }     = require('../config/constants'); // ✅ shared constants
+const { VALID_ROLES }     = require('../config/constants');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// Accepted Google token issuers
 const GOOGLE_ISSUERS = ['accounts.google.com', 'https://accounts.google.com'];
-
-// One shared OAuth2Client instance — stateless, safe to reuse across requests
 const oauthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-// bcrypt cost factor — 12 is a solid default (higher = slower/safer)
-const SALT_ROUNDS = 12;
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-/**
- * _verifyGoogleToken
- * ──────────────────
- * Verify a raw Google credential string and return the decoded ticket payload.
- *
- * @param  {string} idToken  - response.credential from Google One Tap / OAuth popup
- * @returns {Promise<import('google-auth-library').TokenPayload>}
- * @throws  {Error}  GOOGLE_TOKEN_MISSING | GOOGLE_TOKEN_INVALID
- */
 async function _verifyGoogleToken(idToken) {
   if (!idToken || typeof idToken !== 'string') {
     throw new Error('GOOGLE_TOKEN_MISSING: idToken must be a non-empty string.');
@@ -61,12 +47,9 @@ async function _verifyGoogleToken(idToken) {
 
   const payload = ticket.getPayload();
 
-  // Paranoia check — issuer must be Google
   if (!GOOGLE_ISSUERS.includes(payload.iss)) {
     throw new Error('GOOGLE_TOKEN_INVALID: Unexpected token issuer.');
   }
-
-  // Audience must match our registered Client ID
   if (payload.aud !== process.env.GOOGLE_CLIENT_ID) {
     throw new Error('GOOGLE_TOKEN_INVALID: Token audience mismatch.');
   }
@@ -74,15 +57,6 @@ async function _verifyGoogleToken(idToken) {
   return payload;
 }
 
-/**
- * _extractIdentity
- * ────────────────
- * Map the raw Google payload to a clean, normalised identity object.
- *
- * @param  {import('google-auth-library').TokenPayload} payload
- * @returns {{ googleId, email, emailVerified, name, picture }}
- * @throws  {Error}  GOOGLE_PAYLOAD_INVALID
- */
 function _extractIdentity(payload) {
   const { sub, email, email_verified, name, picture } = payload;
 
@@ -101,15 +75,6 @@ function _extractIdentity(payload) {
 
 // ─── Profile bootstrap helpers ────────────────────────────────────────────────
 
-/**
- * _bootstrapFreelancerProfile
- * ───────────────────────────
- * Create a FreelancerProfile stub for a newly-registered freelancer.
- * Idempotent — safe to call multiple times; never double-creates.
- *
- * @param {string} userId    - MongoDB ObjectId string of the parent User
- * @param {object} identity  - Normalised identity ({ name, picture, ... })
- */
 async function _bootstrapFreelancerProfile(userId, identity) {
   const existing = await FreelancerProfile.findOne({ userId });
   if (existing) return existing;
@@ -122,7 +87,6 @@ async function _bootstrapFreelancerProfile(userId, identity) {
     hourlyRate  : null,
     portfolio   : [],
     bio         : '',
-    // tfidfVector built lazily by the match engine on first job query
     tfidfVector : {},
   });
 
@@ -130,15 +94,6 @@ async function _bootstrapFreelancerProfile(userId, identity) {
   return profile;
 }
 
-/**
- * _bootstrapClientProfile
- * ───────────────────────
- * Create a ClientProfile stub for a newly-registered client.
- * Idempotent — safe to call multiple times; never double-creates.
- *
- * @param {string} userId
- * @param {object} identity
- */
 async function _bootstrapClientProfile(userId, identity) {
   const existing = await ClientProfile.findOne({ userId });
   if (existing) return existing;
@@ -156,16 +111,6 @@ async function _bootstrapClientProfile(userId, identity) {
   return profile;
 }
 
-/**
- * _bootstrapProfileForRole
- * ─────────────────────────
- * Shared dispatcher used by both Google sign-up and email/password
- * registration so the two flows can't drift apart.
- *
- * @param {string} role   - 'client' | 'freelancer'
- * @param {string} userId
- * @param {object} identity - anything with { name, picture }
- */
 async function _bootstrapProfileForRole(role, userId, identity) {
   try {
     if (role === 'freelancer') {
@@ -178,57 +123,20 @@ async function _bootstrapProfileForRole(role, userId, identity) {
       userId,
       error: profileErr.message,
     });
-    // Do not rethrow — user record exists; profile can be rebuilt later
   }
 }
 
 // ─── Public API — Google OAuth ─────────────────────────────────────────────────
 
-/**
- * verifyAndExtract
- * ────────────────
- * Validate a Google credential token and return a normalised identity object.
- * Intentionally separated from upsertUser so the controller can validate
- * the role before any DB writes occur.
- *
- * @param  {string} idToken
- * @returns {Promise<{ googleId, email, emailVerified, name, picture }>}
- */
 async function verifyAndExtract(idToken) {
   const payload  = await _verifyGoogleToken(idToken);
   const identity = _extractIdentity(payload);
   return identity;
 }
 
-/**
- * upsertUser
- * ──────────
- * Find-or-create a User document based on the verified Google identity.
- *
- * Upsert rules
- * ────────────
- * SIGN-IN  (isSignUp = false)
- *   • User must already exist — throws USER_NOT_FOUND if not.
- *   • Throws ACCOUNT_SUSPENDED if the account is suspended.
- *   • Refreshes lastLogin and avatarUrl (Google pic may have changed).
- *   • Does NOT change role or create new profiles.
- *
- * SIGN-UP  (isSignUp = true)
- *   • Throws INVALID_ROLE if role is not a valid VALID_ROLES value.
- *   • If user already exists → treated as sign-in (idempotent, no error).
- *     Sets user._wasExisting = true so the controller shows the correct message.
- *   • Creates User with the supplied role.
- *   • Bootstraps the matching role profile (FreelancerProfile or ClientProfile).
- *
- * @param  {object}  identity  - Output of verifyAndExtract()
- * @param  {boolean} isSignUp  - true when coming from the registration tab
- * @param  {string}  [role]    - 'client' | 'freelancer'  (required when isSignUp)
- * @returns {Promise<import('../models/User')>}  The upserted User document
- */
 async function upsertUser(identity, isSignUp, role) {
   const { googleId, email, emailVerified, name, picture } = identity;
 
-  // ── Look up existing user by googleId or email ────────────────────────────
   let user = await User.findOne({
     $or: [{ googleId }, { email }],
   });
@@ -241,14 +149,12 @@ async function upsertUser(identity, isSignUp, role) {
       );
     }
 
-    // Block suspended accounts from signing in
     if (user.accountStatus === 'suspended') {
       throw new Error(
         'ACCOUNT_SUSPENDED: This account has been suspended. Please contact support.'
       );
     }
 
-    // Refresh mutable fields
     user.avatarUrl   = picture || user.avatarUrl;
     user.lastLogin   = new Date();
     user.isVerified  = emailVerified;
@@ -260,16 +166,13 @@ async function upsertUser(identity, isSignUp, role) {
 
   // ── SIGN-UP path ──────────────────────────────────────────────────────────
 
-  // Validate role before any writes
   if (!role || !VALID_ROLES.includes(role)) {
     throw new Error(
       `INVALID_ROLE: role must be one of [${VALID_ROLES.join(', ')}]. Received: "${role}".`
     );
   }
 
-  // Idempotent: existing user attempting sign-up → treat as sign-in
   if (user) {
-    // Block suspended existing user even on re-signup attempt
     if (user.accountStatus === 'suspended') {
       throw new Error(
         'ACCOUNT_SUSPENDED: This account has been suspended. Please contact support.'
@@ -281,12 +184,11 @@ async function upsertUser(identity, isSignUp, role) {
     });
 
     user.lastLogin     = new Date();
-    user._wasExisting  = true;  // transient flag — tells controller this was a re-login
+    user._wasExisting  = true;
     await user.save();
     return user;
   }
 
-  // ── Create new User document ──────────────────────────────────────────────
   user = await User.create({
     googleId,
     email,
@@ -306,8 +208,6 @@ async function upsertUser(identity, isSignUp, role) {
     email,
   });
 
-  // ── Bootstrap role-specific profile ──────────────────────────────────────
-  // Errors are caught and logged but do not fail the sign-up response.
   await _bootstrapProfileForRole(role, user._id.toString(), { name, picture });
 
   return user;
@@ -320,16 +220,10 @@ async function upsertUser(identity, isSignUp, role) {
  * ────────────
  * Create a new User document from name/email/password/role.
  *
- * Rules
- * ─────
- *  • Email is unique across BOTH auth providers — a Google account and a
- *    local account can't share an email. Throws EMAIL_ALREADY_EXISTS if taken.
- *  • Password is hashed with bcrypt before storage — never stored in plaintext.
- *  • Bootstraps the matching role profile, same as the Google sign-up path.
- *
- * @param  {{ name: string, email: string, password: string, role: string }} data
- * @returns {Promise<import('../models/User')>}  The newly-created User document
- * @throws  {Error}  EMAIL_ALREADY_EXISTS | INVALID_ROLE
+ * ⚠️ IMPORTANT: password is passed through PLAINTEXT to User.create().
+ * User.js's pre('save') hook hashes it automatically.
+ * Do NOT hash it here — that would double-hash it and permanently
+ * break every future login for this user.
  */
 async function registerUser({ name, email, password, role }) {
   const normalizedEmail = email.toLowerCase().trim();
@@ -342,14 +236,14 @@ async function registerUser({ name, email, password, role }) {
 
   const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
-    throw new Error('EMAIL_ALREADY_EXISTS: An account with this email already exists.');
+    throw new Error('EMAIL_TAKEN: An account with this email already exists.');
   }
 
-  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-
+  // ✅ FIXED: removed manual bcrypt.hash() call here — was causing double-hashing
+  // against the pre('save') hook in User.js, which made every password login fail.
   const user = await User.create({
     email        : normalizedEmail,
-    password     : hashedPassword,
+    password,    // plaintext — hashed once by the model's pre-save hook
     name         : name.trim(),
     avatarUrl    : null,
     role,
@@ -365,7 +259,6 @@ async function registerUser({ name, email, password, role }) {
     email  : normalizedEmail,
   });
 
-  // Bootstrap role-specific profile — mirrors the Google sign-up path
   await _bootstrapProfileForRole(role, user._id.toString(), { name: user.name, picture: null });
 
   return user;
@@ -375,25 +268,13 @@ async function registerUser({ name, email, password, role }) {
  * authenticateUser
  * ────────────────
  * Verify email/password credentials and return the matching User document.
- *
- * Rules
- * ─────
- *  • Deliberately vague on failure (INVALID_CREDENTIALS) — never reveals
- *    whether the email or the password was wrong.
- *  • Accounts created via Google have password = null; attempting a
- *    password login on one throws GOOGLE_ONLY_ACCOUNT so the frontend can
- *    point the user to the Google button instead.
- *  • Blocks suspended accounts, same as the Google sign-in path.
- *
- * @param  {{ email: string, password: string }} credentials
- * @returns {Promise<import('../models/User')>}  The authenticated User document
- * @throws  {Error}  INVALID_CREDENTIALS | GOOGLE_ONLY_ACCOUNT | ACCOUNT_SUSPENDED
+ * Verification delegated to User.comparePassword() — the model owns its
+ * own hash format, so the service doesn't reimplement bcrypt logic here.
  */
 async function authenticateUser({ email, password }) {
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Need the password hash back for comparison — default schema likely
-  // excludes it via select:false, so explicitly re-include it here.
+  // password has select: false in the schema — explicitly re-include it
   const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
   if (!user) {
@@ -408,7 +289,9 @@ async function authenticateUser({ email, password }) {
     throw new Error('ACCOUNT_SUSPENDED: This account has been suspended. Please contact support.');
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  // ✅ FIXED: uses the model's own comparePassword() instead of manual bcrypt.compare()
+  // — keeps hashing/verification logic in one place (User.js) instead of two.
+  const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw new Error('INVALID_CREDENTIALS: No account found for this email/password combination.');
   }
@@ -420,16 +303,6 @@ async function authenticateUser({ email, password }) {
   return user;
 }
 
-/**
- * findUserById
- * ────────────
- * Thin wrapper used by checkSession to reload a full user document.
- * Returns null (never throws) so the controller can handle the missing-user
- * case cleanly without a try/catch.
- *
- * @param  {string} userId
- * @returns {Promise<import('../models/User') | null>}
- */
 async function findUserById(userId) {
   try {
     return await User.findById(userId).select('-password').lean();

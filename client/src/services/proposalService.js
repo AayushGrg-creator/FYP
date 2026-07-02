@@ -44,5 +44,8 @@ export const proposalService = {
    */
   getByJob: (jobId) => api.get(`/proposals/job/${jobId}`),
 };
-
+// ── Named export wrappers (used by ClientDashboard.jsx) ─────────────────────
+export const getJobProposals = (jobId) => proposalService.getByJob(jobId);
+export const acceptProposal  = (proposalId) => proposalService.updateStatus(proposalId, 'accepted');
+export const rejectProposal  = (proposalId) => proposalService.updateStatus(proposalId, 'rejected');
 export default proposalService;

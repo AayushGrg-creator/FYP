@@ -45,7 +45,7 @@ export default function ClientDashboard() {
     setPropL(true);
     try {
       const data = await getJobProposals(jobId);
-      setProposals(data);
+      setProposals(Array.isArray(data) ? data : (data.proposals || []));
     } catch {}
     setPropL(false);
   }, []);
