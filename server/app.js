@@ -88,7 +88,7 @@ const errorHandler                   = require('./middleware/errorHandler');
 
 const authRoutes         = require('./routes/auth.routes');
 
-// const profileRoutes   = require('./routes/profile.routes');
+ const profileRoutes   = require('./routes/profile.routes');
 
 // const jobRoutes       = require('./routes/job.routes');
 
@@ -310,7 +310,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/auth',        authLimiter, authRoutes);
 
-// app.use('/api/profile',    profileRoutes);
+ app.use('/api/profile',    profileRoutes);
 
 // app.use('/api/jobs',       jobRoutes);
 

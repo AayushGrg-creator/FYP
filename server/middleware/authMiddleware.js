@@ -17,7 +17,7 @@ const User = require('../models/User');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const COOKIE_NAME      = 'tt_token';
+const COOKIE_NAME = 'tt_session';
 const SELECTED_FIELDS  = '+accountStatus +isVerified +role +email +tokenVersion';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,20 +107,19 @@ const protect = async (req, res, next) => {
 
     // ── 3. Validate decoded payload structure ───────────────────────────────
 
-    if (!decoded?.id || typeof decoded.id !== 'string') {
-      return sendAuthError(
-        res, 401,
-        'Malformed token payload. Please log in again.',
-        'AUTH_TOKEN_MALFORMED'
-      );
-    }
-
+   if (!decoded?.sub || typeof decoded.sub !== 'string') {
+  return sendAuthError(
+    res, 401,
+    'Malformed token payload. Please log in again.',
+    'AUTH_TOKEN_MALFORMED'
+  );
+}
     // ── 4. Fetch user from database ─────────────────────────────────────────
 
     let user;
 
     try {
-      user = await User.findById(decoded.id).select(SELECTED_FIELDS);
+      user = await User.findById(decoded.sub).select(SELECTED_FIELDS);
     } catch (dbErr) {
       // Separate DB errors from auth errors for cleaner logging
       console.error('[authMiddleware] DB lookup failed:', dbErr.message);

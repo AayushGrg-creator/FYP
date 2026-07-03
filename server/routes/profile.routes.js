@@ -12,13 +12,17 @@ const router = express.Router();
 
 const profileController = require('../controllers/profile.controller');
 const { protect } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware'); // your Cloudinary multer setup
 
-/* 1. Global Middleware: Enforce Authentication for all profile routes */
-router.use(protect);
+/* Logged-in user's own profile */
+router.route('/me')
+  .get(protect, profileController.getMyProfile)
+  .put(protect, profileController.upsertMyProfile);
 
-/* 2. Profile Operations */
-router.route('/')
-  .get(profileController.getProfile)
-  .put(profileController.updateProfile);
+/* Avatar upload for logged-in user */
+router.post('/me/avatar', protect, upload.single('avatar'), profileController.updateAvatar);
+
+/* Public: view any user's profile by ID (?role=client or ?role=freelancer) */
+router.get('/:userId', profileController.getPublicProfile);
 
 module.exports = router;
