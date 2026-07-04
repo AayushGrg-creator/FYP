@@ -3,8 +3,9 @@ import api from './api';
 /**
  * TaskTide Profile Management Service
  * Path: client/src/services/profileService.js
- * * Manages professional identity synchronization, skill matrices, 
- * and portfolio document uploads.
+ *
+ * Manages professional identity synchronization, skill matrices,
+ * and avatar uploads.
  */
 export const profileService = {
   /**
@@ -14,28 +15,24 @@ export const profileService = {
 
   /**
    * Fetch public profile for a specific user
-   * @param {string} userId 
+   * @param {string} userId
+   * @param {'client'|'freelancer'} role
    */
-  getById: (userId) => api.get(`/profile/${userId}`),
+  getById: (userId, role) => api.get(`/profile/${userId}?role=${role}`),
 
   /**
-   * Update core profile fields (bio, title, hourly rate)
-   * @param {Object} profileData 
+   * Update profile fields (bio, hourlyRate, skills, portfolio, location
+   * for freelancers; companyName, industryType, location for clients)
+   * @param {Object} profileData
    */
-  update: (profileData) => api.patch('/profile/me', profileData),
+  update: (profileData) => api.put('/profile/me', profileData),
 
   /**
-   * Update skill tags array
-   * @param {string[]} skills 
+   * Upload/update avatar image
+   * @param {FormData} fileData - must contain a field named 'avatar'
    */
-  updateSkills: (skills) => api.patch('/profile/me/skills', { skills }),
-
-  /**
-   * Upload portfolio attachment or profile avatar
-   * @param {FormData} fileData 
-   */
-  uploadMedia: (fileData) => 
-    api.post('/profile/me/media', fileData, {
+  uploadAvatar: (fileData) =>
+    api.post('/profile/me/avatar', fileData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 };

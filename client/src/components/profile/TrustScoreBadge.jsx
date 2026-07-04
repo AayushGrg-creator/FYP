@@ -144,17 +144,24 @@ export default function TrustScoreBadge({ score = 0, size = 120, showLabel = tru
 // ─────────────────────────────────────────────────────────────────────
 // ProfileStrengthMeter.jsx  (exported separately at bottom of file)
 // Segmented horizontal bar with field-level breakdown
+//
+// ✅ FIXED: dropped 'phone' and 'social' fields — they don't exist
+// anywhere in FreelancerProfile.js's schema, so they could never be
+// marked complete. Their combined weight (15) has been redistributed
+// across the remaining 6 fields so the total still sums to 100, and
+// these weights now MATCH server/models/FreelancerProfile.js's
+// computeProfileStrength() exactly — previously the two used different
+// weights and showed conflicting percentages on the same dashboard
+// (e.g. 80% in one card, 85% in another for the same profile).
 // ─────────────────────────────────────────────────────────────────────
 
 const PROFILE_FIELDS = [
-  { key: 'avatar',      label: 'Photo',      weight: 10 },
+  { key: 'avatar',      label: 'Photo',      weight: 15 },
   { key: 'bio',         label: 'Bio',        weight: 15 },
   { key: 'skills',      label: 'Skills',     weight: 20 },
   { key: 'hourlyRate',  label: 'Rate',       weight: 10 },
-  { key: 'portfolio',   label: 'Portfolio',  weight: 25 },
-  { key: 'location',    label: 'Location',   weight: 5  },
-  { key: 'phone',       label: 'Phone',      weight: 5  },
-  { key: 'social',      label: 'Social',     weight: 10 },
+  { key: 'portfolio',   label: 'Portfolio',  weight: 30 },
+  { key: 'location',    label: 'Location',   weight: 10 },
 ];
 
 function getStrengthLabel(pct) {

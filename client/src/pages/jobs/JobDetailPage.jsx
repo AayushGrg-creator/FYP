@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
-import { getJob } from '../../services/jobService';
-import { submitProposal } from '../../services/proposalService';
+import { jobService } from '../../services/jobService';
+import { proposalService } from '../../services/proposalService';
 
 export default function JobDetailPage() {
   const { id }       = useParams();
@@ -14,8 +14,8 @@ export default function JobDetailPage() {
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    getJob(id)
-      .then(setJob)
+    jobService.getById(id)
+      .then((res) => setJob(res.job))
       .catch(() => setError('Job not found or could not be loaded.'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -26,7 +26,11 @@ export default function JobDetailPage() {
 
   const isClient     = user?.role === 'client';
   const isFreelancer = user?.role === 'freelancer';
-  const isOwner      = isClient && String(job.clientId?._id || job.clientId) === user?._id;
+  const isOwner      = isClient && String(job.client?._id || job.client) === String(user?._id);
+
+  const clientName = job.client
+    ? `${job.client.firstName || ''} ${job.client.lastName || ''}`.trim() || 'Client'
+    : '';
 
   return (
     <div style={styles.page}>
@@ -47,11 +51,11 @@ export default function JobDetailPage() {
               <h1 style={styles.title}>{job.title}</h1>
 
               <div style={styles.metaRow}>
-                <Meta label="Category"   value={(job.category || '').replace(/-/g, ' ')} />
-                <Meta label="Experience" value={job.experienceLevel} />
-                <Meta label="Budget Type" value={job.budget?.type} />
-                {job.location && <Meta label="Location" value={job.location} />}
-                {job.deadline && <Meta label="Deadline" value={new Date(job.deadline).toLocaleDateString()} />}
+                <Meta label="Category"    value={(job.category || '').replace(/_/g, ' ')} />
+                <Meta label="Budget Type" value={job.budgetType} />
+                {job.deliveryTimeframe && (
+                  <Meta label="Delivery Timeframe" value={`${job.deliveryTimeframe} days`} />
+                )}
               </div>
 
               <Divider />
@@ -59,14 +63,6 @@ export default function JobDetailPage() {
               <Section title="Project Description">
                 <p style={styles.desc}>{job.description}</p>
               </Section>
-
-              {job.deliverables?.length > 0 && (
-                <Section title="Deliverables">
-                  <ul style={styles.list}>
-                    {job.deliverables.map((d, i) => <li key={i} style={styles.listItem}>{d}</li>)}
-                  </ul>
-                </Section>
-              )}
 
               <Section title="Required Skills">
                 <div style={styles.skillRow}>
@@ -108,24 +104,24 @@ export default function JobDetailPage() {
             <div style={styles.sideCard}>
               <div style={styles.sideLabel}>Budget</div>
               <div style={styles.budgetDisplay}>
-                NPR {job.budget?.min?.toLocaleString()} – {job.budget?.max?.toLocaleString()}
+                NPR {job.budgetAmount?.toLocaleString()}
               </div>
-              <div style={styles.budgetType}>{job.budget?.type === 'fixed' ? 'Fixed Price' : 'Hourly Rate'}</div>
+              <div style={styles.budgetType}>{job.budgetType === 'fixed' ? 'Fixed Price' : 'Hourly Rate'}</div>
             </div>
 
             {/* Client Card */}
-            {job.clientId && (
+            {job.client && (
               <div style={styles.sideCard}>
                 <div style={styles.sideLabel}>Client</div>
                 <div style={styles.clientRow}>
                   <div style={styles.avatar}>
-                    {job.clientId.avatar
-                      ? <img src={job.clientId.avatar} alt="" style={styles.avatarImg} />
-                      : <span style={styles.avatarInitial}>{(job.clientId.name || 'C')[0].toUpperCase()}</span>
+                    {job.client.avatarUrl
+                      ? <img src={job.client.avatarUrl} alt="" style={styles.avatarImg} />
+                      : <span style={styles.avatarInitial}>{clientName[0]?.toUpperCase() || 'C'}</span>
                     }
                   </div>
                   <div>
-                    <div style={styles.clientName}>{job.clientId.name}</div>
+                    <div style={styles.clientName}>{clientName}</div>
                     <div style={styles.clientSub}>Client</div>
                   </div>
                 </div>
@@ -162,11 +158,11 @@ function ProposalForm({ jobId, onSuccess, onCancel }) {
     setLoading(true);
     setError('');
     try {
-      await submitProposal({
-        jobId,
-        coverLetter:   form.coverLetter,
-        bidAmount:     parseFloat(form.bidAmount),
-        estimatedDays: parseInt(form.estimatedDays, 10),
+      await proposalService.create({
+        job:               jobId,
+        coverLetter:       form.coverLetter,
+        bidAmount:         parseFloat(form.bidAmount),
+        deliveryTimeframe: parseInt(form.estimatedDays, 10),
       });
       onSuccess();
     } catch (e) {
@@ -263,9 +259,9 @@ function Divider() {
 function StatusBadge({ status }) {
   const MAP = {
     open:        { bg: '#022C22', color: '#34D399', border: '#065F46', label: 'Open' },
-    'in-progress':{ bg: '#0C1A4E', color: '#60A5FA', border: '#1D4ED8', label: 'In Progress' },
+    in_progress: { bg: '#0C1A4E', color: '#60A5FA', border: '#1D4ED8', label: 'In Progress' },
     completed:   { bg: '#1C1917', color: '#A78BFA', border: '#5B21B6', label: 'Completed' },
-    cancelled:   { bg: '#1C0A0A', color: '#F87171', border: '#7F1D1D', label: 'Cancelled' },
+    disputed:    { bg: '#1C0A0A', color: '#F87171', border: '#7F1D1D', label: 'Disputed' },
   };
   const s = MAP[status] || MAP.open;
   return (

@@ -110,18 +110,57 @@ freelancerProfileSchema.virtual('displayName').get(function getDisplayName() {
     : 'Freelancer';
 });
 
-// ── Pre-save: recalculate profile strength ────────────────────────────────────
-freelancerProfileSchema.pre('save', function calcStrength(next) {
+// ── Shared scoring logic (used by both hooks below) ────────────────────────────
+//
+// ✅ FIXED: weights now MATCH client/src/components/profile/TrustScoreBadge.jsx's
+// PROFILE_FIELDS exactly (avatar 15, bio 15, skills 20, hourlyRate 10,
+// portfolio 30, location 10 = 100 total). Previously this used a flat 20%
+// per field across 5 fields, while the frontend used an 8-field weighted
+// scheme including 'phone'/'social' fields that don't exist in this schema
+// — the two disagreed (e.g. backend said 80%, frontend said 85% for the
+// same profile). Both are now a single source of truth.
+function computeProfileStrength(doc) {
   let score = 0;
-  if (this.bio && this.bio.trim().length > 0)            score += 20;
-  if (this.hourlyRate > 0)                               score += 20;
-  if (Array.isArray(this.skills) && this.skills.length)  score += 20;
-  if (Array.isArray(this.portfolio) && this.portfolio.length) score += 20;
-  if (this.avatarUrl && this.avatarUrl.trim().length)    score += 20;
-  this.profileStrength = score;
+  if (doc.avatarUrl && doc.avatarUrl.trim().length)            score += 15;
+  if (doc.bio && doc.bio.trim().length > 0)                    score += 15;
+  if (Array.isArray(doc.skills) && doc.skills.length)          score += 20;
+  if (doc.hourlyRate > 0)                                      score += 10;
+  if (Array.isArray(doc.portfolio) && doc.portfolio.length)    score += 30;
+  if (doc.location && doc.location.trim().length)              score += 10;
+  return score;
+}
+
+// ── Pre-save: recalculate profile strength ────────────────────────────────────
+// Fires when a document is created/modified via .save() (e.g. `new FreelancerProfile().save()`)
+freelancerProfileSchema.pre('save', function calcStrength(next) {
+  this.profileStrength = computeProfileStrength(this);
+  next();
+});
+
+// ── Pre-findOneAndUpdate: recalculate profile strength ─────────────────────────
+// .pre('save') does NOT fire for findOneAndUpdate/upsert — Mongoose treats them
+// as separate query middleware. Since profile.controller.js uses
+// findOneAndUpdate({ upsert: true }) for all profile edits (not .save()),
+// this hook is required or profileStrength silently never updates after the
+// initial document creation.
+freelancerProfileSchema.pre('findOneAndUpdate', async function calcStrengthOnUpdate(next) {
+  const update = this.getUpdate() || {};
+  const incoming = update.$set || update;
+
+  // Merge incoming changes on top of the existing document (if it exists) so
+  // fields not part of this particular update are still counted correctly.
+  const existing = await this.model.findOne(this.getQuery()).lean();
+  const merged = { ...(existing || {}), ...incoming };
+
+  const profileStrength = computeProfileStrength(merged);
+
+  this.setUpdate({
+    ...update,
+    $set: { ...incoming, profileStrength },
+  });
+
   next();
 });
 
 const FreelancerProfile = mongoose.model('FreelancerProfile', freelancerProfileSchema);
 module.exports = FreelancerProfile;
-

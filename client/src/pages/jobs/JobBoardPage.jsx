@@ -1,22 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { getJobs } from '../../services/jobService';
+import { jobService } from '../../services/jobService';
 import FilterSidebar from '../../components/jobs/FilterSidebar';
 
+// NOTE: sorting is limited to what the backend actually supports right now —
+// newest-first (default) or a text-relevance sort when searching. "Oldest"
+// and "Budget high/low" aren't implemented server-side yet, so they're left
+// out here rather than shown as options that silently do nothing.
 const SORT_OPTIONS = [
-  { value: 'newest',      label: '⬆ Newest First' },
-  { value: 'oldest',      label: '⬇ Oldest First' },
-  { value: 'budget_high', label: '💰 Budget: High to Low' },
-  { value: 'budget_low',  label: '💸 Budget: Low to High' },
+  { value: 'newest', label: '⬆ Newest First' },
 ];
 
+// NOTE: experienceLevel and skills filters removed — the Job schema has no
+// experienceLevel field, and the backend's getAllJobs doesn't support
+// filtering by skills yet. Only send filters the backend actually reads.
 const EMPTY_FILTERS = {
   category: '',
   minBudget: '',
   maxBudget: '',
   budgetType: '',
-  experienceLevel: '',
-  skills: [],
 };
 
 export default function JobBoardPage() {
@@ -38,22 +40,19 @@ export default function JobBoardPage() {
     setError('');
     try {
       const params = {
-        q:               search,
-        sortBy,
+        search:     search,
         page,
-        limit:           12,
-        category:        filters.category,
-        minBudget:       filters.minBudget,
-        maxBudget:       filters.maxBudget,
-        budgetType:      filters.budgetType,
-        experienceLevel: filters.experienceLevel,
-        skills:          filters.skills.join(','),
+        limit:      12,
+        category:   filters.category,
+        minBudget:  filters.minBudget,
+        maxBudget:  filters.maxBudget,
+        budgetType: filters.budgetType,
         ...overrides,
       };
-      const data = await getJobs(params);
+      const data = await jobService.getAll(params);
       setJobs(data.jobs);
-      setTotal(data.total);
-      setPages(data.pages);
+      setTotal(data.pagination.totalDocs);
+      setPages(data.pagination.totalPages);
     } catch (e) {
       setError('Failed to load jobs. Please try again.');
     } finally {
@@ -86,10 +85,7 @@ export default function JobBoardPage() {
     setPage(1);
   };
 
-  const activeFilterCount = Object.entries(filters).reduce((n, [k, v]) => {
-    if (k === 'skills') return n + v.length;
-    return n + (v ? 1 : 0);
-  }, 0);
+  const activeFilterCount = Object.values(filters).reduce((n, v) => n + (v ? 1 : 0), 0);
 
   return (
     <div style={styles.page}>
@@ -205,20 +201,20 @@ export default function JobBoardPage() {
 // ── Job Card ──────────────────────────────────────────────────────────────────
 function JobCard({ job }) {
   const CATEGORY_COLORS = {
-    'web-development':    '#0EA5E9',
-    'mobile-development': '#8B5CF6',
-    'graphic-design':     '#EC4899',
-    'content-writing':    '#F59E0B',
-    'digital-marketing':  '#10B981',
-    'data-science':       '#3B82F6',
-    'video-editing':      '#F97316',
-    'ui-ux-design':       '#06B6D4',
-    'devops':             '#6366F1',
-    'other':              '#94A3B8',
+    web_development:    '#0EA5E9',
+    mobile_development: '#8B5CF6',
+    graphic_design:     '#EC4899',
+    content_writing:    '#F59E0B',
+    digital_marketing:  '#10B981',
+    video_editing:      '#F97316',
+    data_science:       '#3B82F6',
+    ui_ux_design:       '#06B6D4',
+    seo:                '#6366F1',
+    other:              '#94A3B8',
   };
   const color    = CATEGORY_COLORS[job.category] || '#94A3B8';
   const timeAgo  = getTimeAgo(job.createdAt);
-  const category = (job.category || 'other').replace(/-/g, ' ');
+  const category = (job.category || 'other').replace(/_/g, ' ');
 
   return (
     <Link to={`/jobs/${job._id}`} style={styles.cardLink}>
@@ -246,13 +242,9 @@ function JobCard({ job }) {
         <div style={styles.cardFooter}>
           <div style={styles.budget}>
             <span style={styles.budgetAmt}>
-              NPR {job.budget?.min?.toLocaleString()} – {job.budget?.max?.toLocaleString()}
+              NPR {job.budgetAmount?.toLocaleString()}
             </span>
-            <span style={styles.budgetType}>{job.budget?.type}</span>
-          </div>
-          <div style={styles.level}>
-            <span style={styles.levelDot} />
-            {job.experienceLevel}
+            <span style={styles.budgetType}>{job.budgetType}</span>
           </div>
         </div>
       </div>
@@ -358,8 +350,6 @@ const styles = {
   budget: { display: 'flex', flexDirection: 'column' },
   budgetAmt: { color: '#0EA5E9', fontSize: 14, fontWeight: 700 },
   budgetType: { color: '#475569', fontSize: 11, textTransform: 'capitalize' },
-  level: { display: 'flex', alignItems: 'center', gap: 6, color: '#64748B', fontSize: 12, textTransform: 'capitalize' },
-  levelDot: { width: 6, height: 6, borderRadius: '50%', background: '#22C55E' },
 
   skeleton: { background: '#1E293B', borderRadius: 6, animation: 'pulse 1.5s ease-in-out infinite' },
 

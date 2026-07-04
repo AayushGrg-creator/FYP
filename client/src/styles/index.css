@@ -4,6 +4,9 @@
 
 /* Import Inter for a clean, modern SaaS look */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ── 1. Modern Reset ── */
 *, *::before, *::after {

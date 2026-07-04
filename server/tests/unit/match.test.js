@@ -26,7 +26,7 @@ const {
   calcResponseTimeScore,
   calcDisputeFreeScore,
   calcBadgeMultiplier,
-} = require('../../utils/trustCalculator');
+} = require('../../utils/Trustcalculator');
 
 /* ═══════════════════════════════════════════════════════════════════
    SUITE 1 — calcCompletionRate()

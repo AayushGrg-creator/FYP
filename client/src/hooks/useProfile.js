@@ -1,18 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from '../utils/constants';
+import profileService from '../services/profileService';
 
-/**
- * useProfile Custom Hook
- * Path: client/src/hooks/useProfile.js
- * * Manages the global state of the user's professional profile document.
- * Coordinates data retrieval, field mutations, and backend synchronization.
- */
 export function useProfile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -22,47 +15,36 @@ export function useProfile() {
     };
   }, []);
 
-  // ── Fetch Profile Payload ──
-  const fetchProfile = useCallback(async (userId) => {
+  const fetchProfile = useCallback(async (userId, role) => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('tt_token');
-      const url = userId ? `${API_BASE_URL}/profile/${userId}` : `${API_BASE_URL}/profile/me`;
-      
-      const response = await axios.get(url, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' }
-      });
+      const data = userId
+        ? await profileService.getById(userId, role)
+        : await profileService.getMe();
 
-      if (isMountedRef.current) {
-        setProfile(response.data.data);
-      }
+      // getMe/getById resolve directly to the profile object (api.js unwraps response.data)
+      if (isMountedRef.current) setProfile(data);
     } catch (err) {
       if (isMountedRef.current) {
-        setError(err.response?.data?.message || 'Failed to retrieve profile data.');
+        setError(err.message || 'Failed to retrieve profile data.');
       }
     } finally {
       if (isMountedRef.current) setLoading(false);
     }
   }, []);
 
-  // ── Patch Profile Mutation Pipeline ──
   const updateProfile = useCallback(async (updateData) => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('tt_token');
-      const response = await axios.patch(`${API_BASE_URL}/profile/me`, updateData, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' }
-      });
+      const result = await profileService.update(updateData);
 
-      if (isMountedRef.current) {
-        // Optimistically update local state with returned backend document
-        setProfile(response.data.data);
-      }
-      return response.data;
+      // update() resolves to { message, data: profile }
+      if (isMountedRef.current) setProfile(result.data);
+      return result;
     } catch (err) {
-      const msg = err.response?.data?.message || 'Profile mutation rejected by backend.';
+      const msg = err.message || 'Profile update failed.';
       if (isMountedRef.current) setError(msg);
       throw new Error(msg);
     } finally {
@@ -70,12 +52,5 @@ export function useProfile() {
     }
   }, []);
 
-  return {
-    profile,
-    loading,
-    error,
-    fetchProfile,
-    updateProfile,
-    setProfile // Exported for fine-grained local-only state adjustments
-  };
+  return { profile, loading, error, fetchProfile, updateProfile, setProfile };
 }

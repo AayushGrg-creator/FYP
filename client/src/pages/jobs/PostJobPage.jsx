@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createJob } from '../../services/jobService';
+import { jobService } from '../../services/jobService';
 
 const CATEGORIES = [
-  { value: 'web-development',    label: 'Web Development' },
-  { value: 'mobile-development', label: 'Mobile Development' },
-  { value: 'graphic-design',     label: 'Graphic Design' },
-  { value: 'content-writing',    label: 'Content Writing' },
-  { value: 'digital-marketing',  label: 'Digital Marketing' },
-  { value: 'data-science',       label: 'Data Science' },
-  { value: 'video-editing',      label: 'Video Editing' },
-  { value: 'ui-ux-design',       label: 'UI / UX Design' },
-  { value: 'devops',             label: 'DevOps' },
+  { value: 'web_development',    label: 'Web Development' },
+  { value: 'mobile_development', label: 'Mobile Development' },
+  { value: 'graphic_design',     label: 'Graphic Design' },
+  { value: 'content_writing',    label: 'Content Writing' },
+  { value: 'digital_marketing',  label: 'Digital Marketing' },
+  { value: 'video_editing',      label: 'Video Editing' },
+  { value: 'data_science',       label: 'Data Science' },
+  { value: 'ui_ux_design',       label: 'UI / UX Design' },
+  { value: 'seo',                label: 'SEO' },
   { value: 'other',              label: 'Other' },
 ];
 
@@ -38,8 +38,7 @@ export default function PostJobPage() {
     location:        '',
     skillsRequired:  [],
     budgetType:      'fixed',
-    budgetMin:       '',
-    budgetMax:       '',
+    budgetAmount:    '',
     deadline:        '',
     deliverables:    [''],
   });
@@ -73,7 +72,7 @@ export default function PostJobPage() {
   // ── Step validation ────────────────────────────────────────────────────────
   const stepValid = () => {
     if (step === 0) return form.title.length >= 5 && form.description.length >= 20 && form.category;
-    if (step === 1) return form.skillsRequired.length > 0 && form.budgetMin && form.budgetMax;
+    if (step === 1) return form.skillsRequired.length > 0 && form.budgetAmount;
     return true;
   };
 
@@ -82,18 +81,33 @@ export default function PostJobPage() {
     setLoading(true);
     setError('');
     try {
+      // Backend stores deliveryTimeframe as a number of days, not a date —
+      // convert the picked deadline into "days from now" if one was set.
+      let deliveryTimeframe;
+      if (form.deadline) {
+        const daysLeft = Math.ceil(
+          (new Date(form.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        );
+        deliveryTimeframe = daysLeft > 0 ? daysLeft : undefined;
+      }
+
+      // NOTE: experienceLevel, location, and deliverables are not part of the
+      // current Job schema/backend and are not sent yet. They're kept in the
+      // form for UI/UX now; wire them up once the backend supports them.
       const payload = {
-        ...form,
-        deliverables: form.deliverables.filter(Boolean),
-        budgetMin: parseFloat(form.budgetMin),
-        budgetMax: parseFloat(form.budgetMax),
-        budget: {
-          type: form.budgetType,
-          min:  parseFloat(form.budgetMin),
-          max:  parseFloat(form.budgetMax),
-        },
+        title:            form.title,
+        description:      form.description,
+        category:         form.category,
+        skillsRequired:   form.skillsRequired,
+        budgetType:       form.budgetType,
+        budgetAmount:     parseFloat(form.budgetAmount),
+        deliveryTimeframe,
       };
-      const job = await createJob(payload);
+
+      const response = await jobService.create(payload);
+      // Controller responds { success, message, job } and api.js's interceptor
+      // unwraps response.data, so the created job is at response.job.
+      const job = response.job;
       navigate(`/jobs/${job._id}`);
     } catch (e) {
       setError(e.response?.data?.message || 'Failed to create job. Please try again.');
@@ -242,19 +256,18 @@ export default function PostJobPage() {
               </div>
             </div>
 
-            <div style={styles.row}>
-              <div style={{ ...styles.field, flex: 1 }}>
-                <label style={styles.label}>
-                  {form.budgetType === 'fixed' ? 'Min Budget (NPR)' : 'Min Rate (NPR/hr)'} <span style={styles.req}>*</span>
-                </label>
-                <input type="number" style={styles.input} placeholder="e.g. 5000" value={form.budgetMin} onChange={e => set('budgetMin', e.target.value)} min="0" />
-              </div>
-              <div style={{ ...styles.field, flex: 1 }}>
-                <label style={styles.label}>
-                  {form.budgetType === 'fixed' ? 'Max Budget (NPR)' : 'Max Rate (NPR/hr)'} <span style={styles.req}>*</span>
-                </label>
-                <input type="number" style={styles.input} placeholder="e.g. 25000" value={form.budgetMax} onChange={e => set('budgetMax', e.target.value)} min="0" />
-              </div>
+            <div style={styles.field}>
+              <label style={styles.label}>
+                {form.budgetType === 'fixed' ? 'Budget (NPR)' : 'Rate (NPR/hr)'} <span style={styles.req}>*</span>
+              </label>
+              <input
+                type="number"
+                style={styles.input}
+                placeholder="e.g. 15000"
+                value={form.budgetAmount}
+                onChange={e => set('budgetAmount', e.target.value)}
+                min="1"
+              />
             </div>
           </div>
         )}
@@ -295,7 +308,7 @@ export default function PostJobPage() {
               <ReviewRow label="Title"       value={form.title} />
               <ReviewRow label="Category"    value={CATEGORIES.find(c => c.value === form.category)?.label} />
               <ReviewRow label="Experience"  value={form.experienceLevel} />
-              <ReviewRow label="Budget"      value={`NPR ${form.budgetMin} – ${form.budgetMax} (${form.budgetType})`} />
+              <ReviewRow label="Budget"      value={`NPR ${form.budgetAmount} (${form.budgetType})`} />
               {form.deadline && <ReviewRow label="Deadline" value={new Date(form.deadline).toLocaleDateString()} />}
               <div style={styles.reviewFull}>
                 <span style={styles.reviewLabel}>Description</span>

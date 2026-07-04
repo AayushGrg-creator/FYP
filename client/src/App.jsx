@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-
+import EditProfilePage from './pages/profile/EditProfilePage';
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
 
@@ -11,6 +11,12 @@ import RoleDashboard from './pages/dashboard/RoleDashboard';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+
+// Job Pages
+import JobBoardPage from './pages/jobs/JobBoardPage';
+import PostJobPage from './pages/jobs/PostJobPage';
+import JobDetailPage from './pages/jobs/JobDetailPage';
+import EditJobPage from './pages/jobs/EditJobPage';
 
 // Footer Pages
 import HowToHire from './pages/HowToHire';
@@ -49,6 +55,13 @@ function App() {
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<RoleDashboard />} />
               <Route path="/profile" element={<FreelancerProfilePage />} />
+              <Route path="/profile/edit" element={<EditProfilePage />} />
+
+              {/* Job Routes */}
+              <Route path="/jobs" element={<JobBoardPage />} />
+              <Route path="/jobs/post" element={<PostJobPage />} />
+              <Route path="/jobs/:id" element={<JobDetailPage />} />
+              <Route path="/jobs/:id/edit" element={<EditJobPage />} />
             </Route>
           </Route>
 

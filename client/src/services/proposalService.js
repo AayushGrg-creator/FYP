@@ -12,8 +12,7 @@ export const proposalService = {
    * @param {Object} params - { status, jobId, freelancerId }
    */
   getAll: (params = {}) => api.get('/proposals', { params }),
-
-  /**
+/**
    * Retrieve detailed proposal metadata including interview context
    * @param {string} id 
    */
@@ -29,7 +28,7 @@ export const proposalService = {
    * Modify existing proposal details (e.g., update bid amount or cover letter)
    * @param {string} id 
    * @param {Object} proposalData 
-   */
+   * */
   update: (id, proposalData) => api.patch(`/proposals/${id}`, proposalData),
 
   /**

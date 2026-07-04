@@ -3,9 +3,16 @@
  * HTTP handlers for the Task Tide Smart-Matching Engine.
  *
  * Routes consumed by match.routes.js:
- *   POST /api/match/job/:jobId          – run matching for a specific job
- *   POST /api/match/custom              – ad-hoc match from raw description text
- *   GET  /api/match/job/:jobId/results  – retrieve cached results for a job
+ *   POST /api/match/job/:jobId          – run matching for a specific job (client)
+ *   GET  /api/match/job/:jobId/results  – retrieve cached results for a job (client)
+ *   POST /api/match/custom              – ad-hoc match from raw description text (client)
+ *   GET  /api/match/my-matches          – jobs matched to the logged-in freelancer  ✅ NEW
+ *   GET  /api/match/freelancer/:id/score – score one freelancer vs. a query (client)
+ *   DELETE /api/match/cache             – clear cache (admin)
+ *
+ * ✅ FIXED: job.clientId -> job.client, job.skills -> job.skillsRequired
+ * (these field names never existed on the Job schema — every call to
+ * matchForJob would have thrown "Cannot read properties of undefined").
  */
 
 'use strict';
@@ -36,7 +43,7 @@ function getCached(key) {
 /* ─────────────────────────────────────────────
    POST /api/match/job/:jobId
    Body (optional): { topN, minTrustScore, maxHourlyRate, location, forceRefresh }
-   Auth: client only (roleMiddleware enforces this via the route)
+   Auth: client only (job owner)
 ───────────────────────────────────────────── */
 async function matchForJob(req, res) {
   try {
@@ -49,57 +56,44 @@ async function matchForJob(req, res) {
       forceRefresh  = false,
     } = req.body || {};
 
-    // ── Load the job ─────────────────────────
     const job = await Job.findById(jobId).lean();
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found.' });
     }
 
-    // Only the job's client may request matching
-    if (job.clientId.toString() !== req.user._id.toString()) {
+    // ✅ FIXED: schema field is "client", not "clientId"
+    if (job.client.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You are not authorised to run matching for this job.',
       });
     }
 
-    // ── Check cache ───────────────────────────
     const cacheKey = `job:${jobId}:${JSON.stringify({ topN, minTrustScore, maxHourlyRate, location })}`;
     if (!forceRefresh) {
       const cached = getCached(cacheKey);
       if (cached) {
-        return res.status(200).json({
-          success:   true,
-          fromCache: true,
-          count:     cached.length,
-          results:   cached,
-        });
+        return res.status(200).json({ success: true, fromCache: true, count: cached.length, results: cached });
       }
     }
 
-    // ── Run the matching pipeline ─────────────
     const filters = {};
     if (minTrustScore !== undefined) filters.minTrustScore = Number(minTrustScore);
     if (maxHourlyRate !== undefined) filters.maxHourlyRate = Number(maxHourlyRate);
     if (location)                    filters.location      = location;
 
+    // ✅ FIXED: schema field is "skillsRequired", not "skills"
     const results = await matchService.getMatchesForJob(
-      job.description || '',
-      job.skills      || [],
+      job.description    || '',
+      job.skillsRequired || [],
       filters,
-      Math.min(Number(topN) || 10, 50), // hard cap at 50
+      Math.min(Number(topN) || 10, 50),
     );
 
     setCached(cacheKey, results);
-
     logger.info(`match.controller: job ${jobId} → ${results.length} candidates returned`);
 
-    return res.status(200).json({
-      success:   true,
-      fromCache: false,
-      count:     results.length,
-      results,
-    });
+    return res.status(200).json({ success: true, fromCache: false, count: results.length, results });
   } catch (err) {
     logger.error('match.controller.matchForJob error:', err);
     return res.status(500).json({ success: false, message: 'Matching failed. Please try again.' });
@@ -109,7 +103,6 @@ async function matchForJob(req, res) {
 /* ─────────────────────────────────────────────
    POST /api/match/custom
    Body: { description, skills[], topN, minTrustScore, maxHourlyRate, location }
-   Allows a client to run an ad-hoc match before formally posting a job.
    Auth: client or admin
 ───────────────────────────────────────────── */
 async function matchCustom(req, res) {
@@ -143,15 +136,45 @@ async function matchCustom(req, res) {
     );
 
     logger.info(`match.controller.matchCustom: ${results.length} candidates returned`);
-
-    return res.status(200).json({
-      success: true,
-      count:   results.length,
-      results,
-    });
+    return res.status(200).json({ success: true, count: results.length, results });
   } catch (err) {
     logger.error('match.controller.matchCustom error:', err);
     return res.status(500).json({ success: false, message: 'Custom matching failed.' });
+  }
+}
+
+/* ─────────────────────────────────────────────
+   GET /api/match/my-matches                         ✅ NEW
+   Returns open jobs ranked by fit for the logged-in freelancer.
+   Powers FreelancerDashboard.jsx's "Top Job Matches" section.
+   Auth: freelancer only
+───────────────────────────────────────────── */
+async function getMyMatches(req, res) {
+  try {
+    const { topN = 10 } = req.query;
+
+    const profile = await FreelancerProfile.findOne({ userId: req.user._id }).lean();
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complete your profile before viewing job matches.',
+      });
+    }
+
+    const results = await matchService.getMatchesForFreelancer(
+      profile._id,
+      Math.min(Number(topN) || 10, 50),
+    );
+
+    if (results === null) {
+      return res.status(404).json({ success: false, message: 'Freelancer profile not found.' });
+    }
+
+    logger.info(`match.controller.getMyMatches: user ${req.user._id} → ${results.length} jobs returned`);
+    return res.status(200).json({ success: true, count: results.length, results });
+  } catch (err) {
+    logger.error('match.controller.getMyMatches error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to load job matches.' });
   }
 }
 
@@ -169,13 +192,13 @@ async function getCachedResults(req, res) {
       return res.status(404).json({ success: false, message: 'Job not found.' });
     }
 
-    if (job.clientId.toString() !== req.user._id.toString()) {
+    // ✅ FIXED: schema field is "client", not "clientId"
+    if (job.client.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Not authorised.' });
     }
 
-    // Look up any cached entry for this job (all filter combos)
-    const prefix  = `job:${jobId}:`;
-    let   found   = null;
+    const prefix = `job:${jobId}:`;
+    let found = null;
     for (const [key, entry] of resultCache) {
       if (key.startsWith(prefix) && Date.now() <= entry.expiresAt) {
         found = entry.results;
@@ -200,14 +223,13 @@ async function getCachedResults(req, res) {
 /* ─────────────────────────────────────────────
    GET /api/match/freelancer/:freelancerId/score
    Body/Query: { description, skills[] }
-   Returns the match score of a single freelancer vs. a job description.
    Auth: client or admin
 ───────────────────────────────────────────── */
 async function scoreFreelancer(req, res) {
   try {
     const { freelancerId } = req.params;
     const description = req.query.description || req.body?.description || '';
-    const skills      = req.query.skills      || req.body?.skills      || [];
+    const skills       = req.query.skills      || req.body?.skills      || [];
 
     if (!description && (!skills || skills.length === 0)) {
       return res.status(400).json({ success: false, message: 'Description or skills required.' });
@@ -232,8 +254,6 @@ async function scoreFreelancer(req, res) {
 
 /* ─────────────────────────────────────────────
    Admin: DELETE /api/match/cache
-   Clears the in-process result cache.
-   Auth: admin only
 ───────────────────────────────────────────── */
 async function clearCache(req, res) {
   try {
@@ -250,6 +270,7 @@ async function clearCache(req, res) {
 module.exports = {
   matchForJob,
   matchCustom,
+  getMyMatches,
   getCachedResults,
   scoreFreelancer,
   clearCache,

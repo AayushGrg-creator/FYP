@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const jobController = require('../controllers/job.controller');
 const { protect } = require('../middleware/authMiddleware');
+const { checkRole } = require('../middleware/roleMiddleware');
 
 /* 1. Public Endpoints - Available to all users */
 router.route('/')
@@ -22,7 +23,7 @@ router.route('/:id')
 router.use(protect);
 
 router.route('/')
-  .post(jobController.createJob);
+  .post(checkRole(['client']), jobController.createJob);
 
 router.route('/:id')
   .put(jobController.updateJob)

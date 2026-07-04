@@ -1,207 +1,135 @@
+'use strict';
+
 /**
  * match.service.js
  * Smart-Matching Engine for Task Tide (Section 5.2 of the FYP report).
  *
+ * ✅ REWRITTEN: previously reimplemented preprocessing/TF-IDF/cosine from
+ * scratch using the `natural` npm package, completely bypassing the more
+ * sophisticated pipeline already built in server/ai/ (skill taxonomy
+ * expansion, proper stemming, sparse vectors). This version uses that
+ * pipeline instead, so "React developer" and "Frontend engineer with JSX"
+ * now correctly score as related via skillTaxonomy.js's expansion map.
+ *
  * Pipeline (§5.2.2.3):
- *   Step 1  – Text pre-processing  (tokenise → lowercase → stopword strip → stem)
- *   Step 2  – TF-IDF vectorisation
- *   Step 3  – Cosine similarity between job vector and each freelancer vector
+ *   Step 1  – Text pre-processing  (ai/preprocessor.js: normalise → tokenise
+ *             → clean → stopword-filter → stem → taxonomy-expand → dedup)
+ *   Step 2  – TF-IDF vectorisation (ai/tfidf.js TfidfEngine, fit fresh per
+ *             request over the relevant corpus — job + candidate freelancers,
+ *             or freelancer + candidate jobs)
+ *   Step 3  – Cosine similarity (ai/cosineSimilarity.js cosineSparseObjs)
  *   Step 4  – Weighted final score:
  *               Final Score = (cosineSimilarity × 0.7) + (normalisedTrustScore × 0.3)
  *   Step 5  – Rank, return top-N results with explanatory tags
+ *
+ * Two directions are supported:
+ *   getMatchesForJob(...)        — client view: "who should I hire for this job?"
+ *   getMatchesForFreelancer(...) — freelancer view: "which open jobs fit me?"
+ *     (this direction did not exist before — added for the freelancer
+ *     dashboard's "Top Job Matches" section)
  */
 
-'use strict';
-
-const natural           = require('natural');
-const FreelancerProfile = require('../models/FreelancerProfile');
-const { normaliseTrustScore } = require('../utils/trustCalculator');
-const logger            = require('../config/logger');
-
-/* ─────────────────────────────────────────────
-   NLP tooling (npm: natural)
-───────────────────────────────────────────── */
-const tokenizer = new natural.WordTokenizer();
-const stemmer   = natural.PorterStemmer;
-
-// English stop-words — keep this lean; the `natural` package does not ship a
-// standalone list, so we maintain a compact version here.
-const STOP_WORDS = new Set([
-  'a','an','the','and','or','but','in','on','at','to','for','of','with',
-  'by','from','is','are','was','were','be','been','being','have','has',
-  'had','do','does','did','will','would','could','should','may','might',
-  'shall','can','need','this','that','these','those','it','its','i','we',
-  'you','he','she','they','my','our','your','his','her','their','as','if',
-  'not','no','so','then','than','up','out','about','into','more','also',
-  'very','just','also','only','over','such','both','each','how','when',
-  'where','who','which','what','all','any','some','other','new','use',
-  'using','used','experience','work','working','years','year','strong',
-  'knowledge','skills','skill','looking','team','able','good','well',
-  'must','required','including','include','includes','projects','project',
-]);
+const { TfidfEngine }       = require('../ai/tfidf');
+const { cosineSparseObjs }  = require('../ai/cosineSimilarity');
+const { preprocess, buildDocumentText } = require('../ai/preprocessor');
+const FreelancerProfile     = require('../models/FreelancerProfile');
+const Job                   = require('../models/Job');
+const { normaliseTrustScore } = require('../utils/Trustcalculator');
+const logger                 = require('../config/logger');
 
 /* ─────────────────────────────────────────────
    Scoring weights (§5.2.2.3)
 ───────────────────────────────────────────── */
-const COSINE_WEIGHT     = 0.7;
-const TRUST_WEIGHT      = 0.3;
-const TOP_N_DEFAULT     = 10;
+const COSINE_WEIGHT = 0.7;
+const TRUST_WEIGHT  = 0.3;
+const TOP_N_DEFAULT = 10;
 
 /* ─────────────────────────────────────────────
-   Step 1 – Pre-process a text string
-   Returns an array of stemmed, cleaned tokens.
+   Helper: build a fresh TfidfEngine over an ad-hoc corpus and return
+   sparse vectors (plain objects) for every document, keyed by id.
+
+   NOTE: for FYP scope this fits the engine fresh on every request rather
+   than reading precomputed FreelancerProfile.tfidfVector / Job.tfidfVector
+   fields. That's the simpler, always-correct option — the precomputed
+   fields (and scripts/rebuildTfidfIndex.js) exist for a future optimisation
+   where the corpus is large enough that per-request fitting is too slow.
 ───────────────────────────────────────────── */
-function preprocess(text = '') {
-  if (!text || typeof text !== 'string') return [];
-  const tokens = tokenizer.tokenize(text.toLowerCase()) || [];
-  return tokens
-    .filter(t => t.length > 1 && !STOP_WORDS.has(t) && /^[a-z]/.test(t))
-    .map(t => stemmer.stem(t));
-}
+function vectoriseCorpus(docs) {
+  // docs: Array<{ id: string, tokens: string[] }>
+  //
+  // ✅ FIXED: maxDfRatio must be 1 (disabled) here, not the tfidf.js default
+  // of 0.95. That default assumes a large corpus (hundreds of freelancer
+  // profiles) where terms appearing in >95% of documents are corpus-level
+  // filler words worth ignoring. This ad-hoc corpus only ever has 2
+  // documents (the query + one candidate), so with maxDfRatio 0.95,
+  // maxDfAbs = floor(0.95 * 2) = 1 — meaning ANY word appearing in BOTH
+  // documents (df = 2) was being excluded as "too common". Those shared
+  // words are exactly what should drive the match score, so the filter
+  // was silently zeroing out every genuine overlap and matchPercent was
+  // always 0 regardless of how well two documents actually matched.
+  const engine = new TfidfEngine({ l2Normalise: true, minDf: 1, maxDfRatio: 1 });
+  engine.fit(docs);
 
-/* ─────────────────────────────────────────────
-   Step 2 – Build TF-IDF vectors
-   Returns { vocabulary: string[], vectors: Map<id, number[]> }
-   where each vector is normalised (unit-length).
-
-   @param {Array<{ id, tokens: string[] }>} documents
-───────────────────────────────────────────── */
-function buildTfidfVectors(documents) {
-  if (!documents || documents.length === 0) {
-    return { vocabulary: [], vectors: new Map() };
-  }
-
-  // Build vocabulary (unique terms across all docs)
-  const vocabSet = new Set();
-  for (const doc of documents) {
-    for (const token of doc.tokens) vocabSet.add(token);
-  }
-  const vocabulary = Array.from(vocabSet);
-  const N = documents.length;
-
-  // Document frequency: how many docs contain each term
-  const df = new Map();
-  for (const term of vocabulary) {
-    let count = 0;
-    for (const doc of documents) {
-      if (doc.tokens.includes(term)) count++;
-    }
-    df.set(term, count);
-  }
-
-  // Build TF-IDF vector for each document
   const vectors = new Map();
-
-  for (const doc of documents) {
-    const termCount = doc.tokens.length;
-    const vector    = new Float64Array(vocabulary.length);
-
-    // Term frequency map for this document
-    const tfMap = new Map();
-    for (const token of doc.tokens) {
-      tfMap.set(token, (tfMap.get(token) || 0) + 1);
-    }
-
-    for (let i = 0; i < vocabulary.length; i++) {
-      const term = vocabulary[i];
-      const tf   = termCount > 0 ? (tfMap.get(term) || 0) / termCount : 0;
-      const idf  = df.get(term) > 0
-                 ? Math.log(N / df.get(term))
-                 : 0;
-      vector[i] = tf * idf;
-    }
-
-    // L2-normalise to unit length for cosine similarity
-    const magnitude = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
-    if (magnitude > 0) {
-      for (let i = 0; i < vector.length; i++) vector[i] /= magnitude;
-    }
-
-    vectors.set(doc.id, vector);
+  for (const [id, vecMap] of engine.getAllDocumentVectors()) {
+    vectors.set(id, TfidfEngine.vectorToObject(vecMap));
   }
-
-  return { vocabulary, vectors };
-}
-
-/* ─────────────────────────────────────────────
-   Step 3 – Cosine similarity between two vectors
-   Both must be the same length.
-   Returns a value in [0, 1].
-───────────────────────────────────────────── */
-function cosineSimilarity(vecA, vecB) {
-  if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
-
-  let dot = 0;
-  let magA = 0;
-  let magB = 0;
-
-  for (let i = 0; i < vecA.length; i++) {
-    dot  += vecA[i] * vecB[i];
-    magA += vecA[i] * vecA[i];
-    magB += vecB[i] * vecB[i];
-  }
-
-  const denominator = Math.sqrt(magA) * Math.sqrt(magB);
-  // Guard against divide-by-zero
-  return denominator > 0 ? Math.min(dot / denominator, 1) : 0;
+  return vectors;
 }
 
 /* ─────────────────────────────────────────────
    Build a plain-language explanation of the match
 ───────────────────────────────────────────── */
-function buildExplanationTags(jobTokens, freelancerTokens, cosine, trustScore) {
-  const jobSet  = new Set(jobTokens);
-  const overlap = freelancerTokens.filter(t => jobSet.has(t));
-  const tags    = [];
+function buildExplanationTags(queryTokens, candidateTokens, cosine, trustScore) {
+  const querySet = new Set(queryTokens);
+  const overlap  = candidateTokens.filter((t) => querySet.has(t));
+  const tags     = [];
 
   if (overlap.length > 0) {
-    tags.push(`Matched skills: ${[...new Set(overlap)].slice(0, 5).join(', ')}`);
+    tags.push(`Matched: ${[...new Set(overlap)].slice(0, 5).join(', ')}`);
   }
-  if (cosine >= 0.8)       tags.push('Excellent skill alignment');
-  else if (cosine >= 0.6)  tags.push('Strong skill alignment');
-  else if (cosine >= 0.4)  tags.push('Moderate skill alignment');
-  else                     tags.push('Partial skill alignment');
+  if (cosine >= 0.8)      tags.push('Excellent skill alignment');
+  else if (cosine >= 0.6) tags.push('Strong skill alignment');
+  else if (cosine >= 0.4) tags.push('Moderate skill alignment');
+  else                    tags.push('Partial skill alignment');
 
-  if (trustScore >= 90)    tags.push('Highly trusted freelancer');
+  if (trustScore >= 90)      tags.push('Highly trusted freelancer');
   else if (trustScore >= 70) tags.push('Verified trusted freelancer');
 
   return tags;
 }
 
-/* ─────────────────────────────────────────────
-   Core service: getMatchesForJob
-   Fetches all active freelancer profiles, runs the
-   five-step pipeline, and returns ranked results.
+/* ═══════════════════════════════════════════════════════════════════
+   CLIENT VIEW — getMatchesForJob
+   "Given this job, which freelancers fit best?"
+═══════════════════════════════════════════════════════════════════ */
 
-   @param {string} jobDescription  – raw job description text
-   @param {string[]} jobSkills     – explicit skill tags from the job form
-   @param {object}  filters        – optional { minTrustScore, maxHourlyRate, location }
-   @param {number}  topN           – number of results to return (default 10)
-
-   @returns {Promise<Array>}
-───────────────────────────────────────────── */
+/**
+ * @param {string}   jobDescription
+ * @param {string[]} jobSkills        - explicit skill tags from the job form
+ * @param {object}   filters          - { minTrustScore, maxHourlyRate, location }
+ * @param {number}   topN
+ * @returns {Promise<Array>}
+ */
 async function getMatchesForJob(
   jobDescription = '',
   jobSkills      = [],
   filters        = {},
   topN           = TOP_N_DEFAULT,
 ) {
-  // ── Fetch freelancer profiles ────────────────
-  const query = { isActive: { $ne: false } };
+  const query = {};
   if (filters.minTrustScore) query.trustScore = { $gte: filters.minTrustScore };
   if (filters.maxHourlyRate) query.hourlyRate  = { $lte: filters.maxHourlyRate };
   if (filters.location)      query.location    = new RegExp(filters.location, 'i');
 
   const profiles = await FreelancerProfile.find(query)
-    .populate('userId', 'name email trustScore')
+    .populate('userId', 'name email trustScore avatarUrl')
     .lean();
 
-  if (!profiles || profiles.length === 0) {
-    return [];
-  }
+  if (!profiles || profiles.length === 0) return [];
 
-  // ── Step 1: Pre-process job description ─────
-  const jobText   = `${jobDescription} ${jobSkills.join(' ')}`;
+  // ── Step 1: pre-process job text (title/description/skills combined) ──
+  const jobText = [jobDescription, jobSkills.join(' ')].join(' ');
   const jobTokens = preprocess(jobText);
 
   if (jobTokens.length === 0) {
@@ -209,83 +137,135 @@ async function getMatchesForJob(
     return [];
   }
 
-  // ── Step 1: Pre-process freelancer profiles ──
-  const freelancerDocs = profiles.map(p => {
-    const profileText = [
-      (p.skills  || []).join(' '),
-      p.bio       || '',
-      (p.portfolio || []).map(item => `${item.title || ''} ${item.description || ''}`).join(' '),
-    ].join(' ');
+  // ── Step 1 (cont.): pre-process each freelancer profile ──
+  const freelancerDocs = profiles.map((p) => ({
+    id:      p._id.toString(),
+    tokens:  preprocess(buildDocumentText(p, 'freelancer')),
+    profile: p,
+  }));
 
-    return {
-      id:     p._id.toString(),
-      tokens: preprocess(profileText),
-      profile: p,
-    };
-  });
-
-  // ── Step 2: Build TF-IDF vectors ────────────
-  // The job description is document 0; freelancer profiles follow.
-  const allDocuments = [
-    { id: '__job__', tokens: jobTokens },
-    ...freelancerDocs.map(d => ({ id: d.id, tokens: d.tokens })),
+  // ── Step 2: TF-IDF over the ad-hoc corpus (job + all candidate freelancers) ──
+  const corpus = [
+    { id: '__query__', tokens: jobTokens },
+    ...freelancerDocs.map((d) => ({ id: d.id, tokens: d.tokens })),
   ];
+  const vectors = vectoriseCorpus(corpus);
+  const queryVector = vectors.get('__query__');
 
-  const { vectors } = buildTfidfVectors(allDocuments);
+  // ── Steps 3 & 4: score each freelancer ──
+  const scored = freelancerDocs.map((doc) => {
+    const candidateVector = vectors.get(doc.id) || {};
+    const cosine = cosineSparseObjs(queryVector, candidateVector);
 
-  const jobVector = vectors.get('__job__');
-  if (!jobVector) {
-    logger.error('match.service: could not build TF-IDF vector for job');
-    return [];
-  }
-
-  // ── Steps 3 & 4: Score each freelancer ───────
-  const scored = freelancerDocs.map(doc => {
-    const freelancerVector = vectors.get(doc.id);
-
-    // Step 3 – cosine similarity
-    const cosine = freelancerVector
-      ? cosineSimilarity(jobVector, freelancerVector)
-      : 0;
-
-    // Step 4 – weighted final score
-    const rawTrustScore     = doc.profile.trustScore || 0;
-    const normalisedTrust   = normaliseTrustScore(rawTrustScore);
-    const finalScore        = cosine * COSINE_WEIGHT + normalisedTrust * TRUST_WEIGHT;
-
-    // Explanation tags
-    const tags = buildExplanationTags(
-      jobTokens,
-      doc.tokens,
-      cosine,
-      rawTrustScore,
-    );
+    const rawTrustScore   = doc.profile.trustScore || 0;
+    const normalisedTrust = normaliseTrustScore(rawTrustScore);
+    const finalScore      = cosine * COSINE_WEIGHT + normalisedTrust * TRUST_WEIGHT;
 
     return {
-      freelancerId:  doc.profile._id,
-      userId:        doc.profile.userId?._id,
-      name:          doc.profile.userId?.name  || 'Unknown',
-      email:         doc.profile.userId?.email || '',
-      skills:        doc.profile.skills        || [],
-      hourlyRate:    doc.profile.hourlyRate     || 0,
-      location:      doc.profile.location      || '',
-      trustScore:    rawTrustScore,
-      matchPercent:  Math.round(finalScore * 100 * 10) / 10,
-      cosineSimilarity: Math.round(cosine * 100 * 10) / 10,
-      explanation:   tags,
+      freelancerId: doc.profile._id,
+      userId:       doc.profile.userId?._id,
+      name:         doc.profile.userId?.name  || 'Unknown',
+      email:        doc.profile.userId?.email || '',
+      avatarUrl:    doc.profile.userId?.avatarUrl || doc.profile.avatarUrl || '',
+      skills:       doc.profile.skills     || [],
+      hourlyRate:   doc.profile.hourlyRate || 0,
+      location:     doc.profile.location   || '',
+      trustScore:   rawTrustScore,
+      matchPercent:     Math.round(finalScore * 1000) / 10,
+      cosineSimilarity: Math.round(cosine * 1000) / 10,
+      explanation:  buildExplanationTags(jobTokens, doc.tokens, cosine, rawTrustScore),
     };
   });
 
-  // ── Step 5: Rank and return top-N ────────────
   return scored
     .sort((a, b) => b.matchPercent - a.matchPercent)
     .slice(0, topN);
 }
 
-/* ─────────────────────────────────────────────
-   Lightweight single-freelancer score (used when
-   re-scoring after profile updates).
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   FREELANCER VIEW — getMatchesForFreelancer   (✅ NEW)
+   "Given this freelancer, which open jobs fit best?"
+   Powers the Freelancer Dashboard's "Top Job Matches" section.
+═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * @param {string} freelancerProfileId
+ * @param {number} topN
+ * @returns {Promise<Array>}
+ */
+async function getMatchesForFreelancer(freelancerProfileId, topN = TOP_N_DEFAULT) {
+  const profile = await FreelancerProfile.findById(freelancerProfileId).lean();
+  if (!profile) return null;
+
+  const jobs = await Job.find({ status: 'open', isArchived: false })
+    .populate('client', 'name email')
+    .lean();
+
+  if (!jobs || jobs.length === 0) return [];
+
+  // ── Step 1: pre-process the freelancer's own profile text (the "query") ──
+  const profileTokens = preprocess(buildDocumentText(profile, 'freelancer'));
+
+  if (profileTokens.length === 0) {
+    logger.warn('match.service: freelancer profile produced zero tokens (bio/skills empty?)');
+    return [];
+  }
+
+  // ── Step 1 (cont.): pre-process each open job ──
+  // NOTE: buildDocumentText's 'job' branch reads doc.requiredSkills, but the
+  // actual Job schema field is skillsRequired — fixed here by mapping it
+  // across before calling buildDocumentText, rather than editing the shared
+  // preprocessor (keeps the fix local and obvious).
+  const jobDocs = jobs.map((j) => ({
+    id:    j._id.toString(),
+    tokens: preprocess(buildDocumentText({ ...j, requiredSkills: j.skillsRequired }, 'job')),
+    job:   j,
+  }));
+
+  // ── Step 2: TF-IDF over the ad-hoc corpus (freelancer + all open jobs) ──
+  const corpus = [
+    { id: '__query__', tokens: profileTokens },
+    ...jobDocs.map((d) => ({ id: d.id, tokens: d.tokens })),
+  ];
+  const vectors = vectoriseCorpus(corpus);
+  const queryVector = vectors.get('__query__');
+
+  // ── Steps 3 & 4: score each job ──
+  // Trust component here reflects the CLIENT's trust score is not tracked
+  // the same way — jobs don't carry a trust score, so for this direction the
+  // final score is cosine-only (weight 1.0). This is a deliberate, documented
+  // simplification: the report's weighted formula was designed for ranking
+  // freelancers-for-a-job (where trust is a freelancer attribute), not the
+  // reverse direction.
+  const scored = jobDocs.map((doc) => {
+    const jobVector = vectors.get(doc.id) || {};
+    const cosine = cosineSparseObjs(queryVector, jobVector);
+
+    return {
+      jobId:        doc.job._id,
+      title:        doc.job.title,
+      category:     doc.job.category,
+      budgetType:   doc.job.budgetType,
+      budgetAmount: doc.job.budgetAmount,
+      skillsRequired: doc.job.skillsRequired || [],
+      clientName:   doc.job.client?.name || 'Client',
+      createdAt:    doc.job.createdAt,
+      matchPercent:     Math.round(cosine * 1000) / 10,
+      cosineSimilarity: Math.round(cosine * 1000) / 10,
+      explanation:  buildExplanationTags(profileTokens, doc.tokens, cosine, 0)
+                      .filter((tag) => !tag.includes('trusted')), // trust tags don't apply here
+    };
+  });
+
+  return scored
+    .sort((a, b) => b.matchPercent - a.matchPercent)
+    .slice(0, topN);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Lightweight single-freelancer score (used when re-scoring after
+   profile updates, or previewing a job before posting)
+═══════════════════════════════════════════════════════════════════ */
 async function scoreFreelancerAgainstJob(freelancerProfileId, jobDescription, jobSkills = []) {
   const profile = await FreelancerProfile.findById(freelancerProfileId)
     .populate('userId', 'name email trustScore')
@@ -293,36 +273,26 @@ async function scoreFreelancerAgainstJob(freelancerProfileId, jobDescription, jo
 
   if (!profile) return null;
 
-  const jobText   = `${jobDescription} ${jobSkills.join(' ')}`;
-  const jobTokens = preprocess(jobText);
+  const jobTokens     = preprocess([jobDescription, jobSkills.join(' ')].join(' '));
+  const profileTokens = preprocess(buildDocumentText(profile, 'freelancer'));
 
-  const profileText = [
-    (profile.skills  || []).join(' '),
-    profile.bio       || '',
-  ].join(' ');
-  const profileTokens = preprocess(profileText);
-
-  const docs = [
-    { id: '__job__',       tokens: jobTokens },
+  const vectors = vectoriseCorpus([
+    { id: '__job__',        tokens: jobTokens },
     { id: '__freelancer__', tokens: profileTokens },
-  ];
-  const { vectors } = buildTfidfVectors(docs);
+  ]);
 
-  const cosine       = cosineSimilarity(vectors.get('__job__'), vectors.get('__freelancer__'));
-  const trust        = normaliseTrustScore(profile.trustScore || 0);
-  const finalScore   = cosine * COSINE_WEIGHT + trust * TRUST_WEIGHT;
+  const cosine     = cosineSparseObjs(vectors.get('__job__') || {}, vectors.get('__freelancer__') || {});
+  const trust      = normaliseTrustScore(profile.trustScore || 0);
+  const finalScore = cosine * COSINE_WEIGHT + trust * TRUST_WEIGHT;
 
   return {
-    cosineSimilarity: Math.round(cosine * 100 * 10) / 10,
-    matchPercent:     Math.round(finalScore * 100 * 10) / 10,
+    cosineSimilarity: Math.round(cosine * 1000) / 10,
+    matchPercent:     Math.round(finalScore * 1000) / 10,
   };
 }
 
 module.exports = {
   getMatchesForJob,
+  getMatchesForFreelancer,
   scoreFreelancerAgainstJob,
-  // Exported for use in rebuildTfidfIndex script
-  preprocess,
-  buildTfidfVectors,
-  cosineSimilarity,
 };

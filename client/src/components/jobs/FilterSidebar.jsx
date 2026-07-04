@@ -1,35 +1,21 @@
 import React from 'react';
 
 const CATEGORIES = [
-  { value: '',           label: 'All Categories' },
-  { value: 'web-development',    label: 'Web Development' },
-  { value: 'mobile-development', label: 'Mobile Development' },
-  { value: 'graphic-design',     label: 'Graphic Design' },
-  { value: 'content-writing',    label: 'Content Writing' },
-  { value: 'digital-marketing',  label: 'Digital Marketing' },
-  { value: 'data-science',       label: 'Data Science' },
-  { value: 'video-editing',      label: 'Video Editing' },
-  { value: 'ui-ux-design',       label: 'UI / UX Design' },
-  { value: 'devops',             label: 'DevOps' },
+  { value: '',                   label: 'All Categories' },
+  { value: 'web_development',    label: 'Web Development' },
+  { value: 'mobile_development', label: 'Mobile Development' },
+  { value: 'graphic_design',     label: 'Graphic Design' },
+  { value: 'content_writing',    label: 'Content Writing' },
+  { value: 'digital_marketing',  label: 'Digital Marketing' },
+  { value: 'video_editing',      label: 'Video Editing' },
+  { value: 'data_science',       label: 'Data Science' },
+  { value: 'ui_ux_design',       label: 'UI / UX Design' },
+  { value: 'seo',                label: 'SEO' },
   { value: 'other',              label: 'Other' },
-];
-
-const POPULAR_SKILLS = [
-  'React','Node.js','Python','JavaScript','TypeScript',
-  'MongoDB','AWS','Docker','Figma','Tailwind CSS','Next.js',
-  'PostgreSQL','GraphQL','Vue.js','Kotlin','Flutter',
 ];
 
 export default function FilterSidebar({ filters = {}, onChange, onReset }) {
   const set = (key, val) => onChange({ ...filters, [key]: val });
-
-  const toggleSkill = (skill) => {
-    const current = filters.skills || [];
-    const updated = current.includes(skill)
-      ? current.filter(s => s !== skill)
-      : [...current, skill];
-    set('skills', updated);
-  };
 
   return (
     <aside style={styles.sidebar}>
@@ -68,7 +54,7 @@ export default function FilterSidebar({ filters = {}, onChange, onReset }) {
       </div>
 
       {/* Financial Target Parameter Inputs */}
-      <div style={styles.section}>
+      <div style={{ ...styles.section, borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>
         <div style={styles.sectionTitle}>Budget (NPR)</div>
         <div style={styles.budgetRow}>
           <input
@@ -89,7 +75,7 @@ export default function FilterSidebar({ filters = {}, onChange, onReset }) {
             min="0"
           />
         </div>
-        
+
         {/* Project Terms Switchers */}
         <div style={styles.typeBtnWrapper}>
           {['', 'fixed', 'hourly'].map(t => {
@@ -105,53 +91,6 @@ export default function FilterSidebar({ filters = {}, onChange, onReset }) {
                 onClick={() => set('budgetType', t)}
               >
                 {t === '' ? 'Any' : t === 'fixed' ? 'Fixed' : 'Hourly'}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Experience Tier Metrics */}
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>Experience Level</div>
-        {['', 'entry', 'intermediate', 'expert'].map(l => {
-          const isLevelChecked = (filters.experienceLevel || '') === l;
-          return (
-            <label key={l} style={styles.radioLabel}>
-              <input
-                type="radio"
-                name="experience"
-                value={l}
-                checked={isLevelChecked}
-                onChange={() => set('experienceLevel', l)}
-                style={styles.radio}
-              />
-              <span style={{
-                ...styles.radioText,
-                color: isLevelChecked ? '#0EA5E9' : '#94A3B8',
-                fontWeight: isLevelChecked ? 600 : 400,
-              }}>
-                {l === '' ? 'Any Level' : l.charAt(0).toUpperCase() + l.slice(1)}
-              </span>
-            </label>
-          );
-        })}
-      </div>
-
-      {/* Cloud Tag System Multi-Select Matrix */}
-      <div style={{ ...styles.section, borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>
-        <div style={styles.sectionTitle}>Skills</div>
-        <div style={styles.skillGrid}>
-          {POPULAR_SKILLS.map(s => {
-            const isSkillActive = (filters.skills || []).includes(s);
-            return (
-              <button
-                key={s}
-                type="button"
-                style={{ ...styles.skillBtn, ...(isSkillActive ? styles.skillActive : {}) }}
-                onClick={() => toggleSkill(s)}
-              >
-                {s}
               </button>
             );
           })}
@@ -260,23 +199,5 @@ const styles = {
     background: '#0F2235',
     border: '1px solid #0EA5E9',
     color: '#0EA5E9',
-  },
-  skillGrid: { display: 'flex', flexWrap: 'wrap', gap: 6 },
-  skillBtn: {
-    background: 'transparent',
-    border: '1px solid #1E293B',
-    color: '#64748B',
-    borderRadius: 20,
-    padding: '5px 12px',
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    fontFamily: 'inherit',
-  },
-  skillActive: {
-    background: '#0F2235',
-    border: '1px solid #0EA5E9',
-    color: '#7DD3FC',
   },
 };

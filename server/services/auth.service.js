@@ -13,6 +13,7 @@
  *  - Extract normalised identity payloads
  *  - Upsert User + role-specific profile documents in MongoDB
  *  - Enforce account status checks on sign-in
+ *  - Enforce role-consistency checks on sign-up (✅ new)
  */
 
 const { OAuth2Client }    = require('google-auth-library');
@@ -176,6 +177,18 @@ async function upsertUser(identity, isSignUp, role) {
     if (user.accountStatus === 'suspended') {
       throw new Error(
         'ACCOUNT_SUSPENDED: This account has been suspended. Please contact support.'
+      );
+    }
+
+    // ✅ NEW: Reject sign-up attempts where the selected role doesn't match
+    // the existing account's role. Without this check, picking "Client" on
+    // an email that already has a Freelancer account silently logged the
+    // person into their existing Freelancer account with no explanation —
+    // this makes the mismatch an explicit, user-visible error instead.
+    if (user.role !== role) {
+      throw new Error(
+        `ROLE_MISMATCH: An account with this email already exists as a ${user.role}. ` +
+        `Please sign in as a ${user.role}, or use a different email to sign up as a ${role}.`
       );
     }
 
