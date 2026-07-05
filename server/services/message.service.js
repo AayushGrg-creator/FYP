@@ -7,11 +7,11 @@
  *   • Fetching paginated message history
  *   • Marking messages as read and resetting unread counters
  *   • Building inbox summaries for the dashboard
+ *   • Creating new messages (called from socket.js)
  *
- * This service is intentionally decoupled from Socket.io.
- * Socket event handlers (socket.js) call this service for persistence;
- * REST route handlers (message.controller.js) call it for HTTP reads.
- * No socket imports live here.
+ * This service is intentionally decoupled from Socket.io's transport layer,
+ * but IS called by socket.js for persistence (createMessage), and by
+ * message.controller.js for REST reads.
  */
 
 'use strict';
@@ -28,34 +28,93 @@ const logger       = require('../config/logger');
    @param {string} projectId
    @returns {Promise<Conversation>}
 ───────────────────────────────────────────── */
-async function getOrCreateConversation(projectId) {
+
+
+  async function getOrCreateConversation(projectId) {
   const existing = await Conversation.findOne({ projectId });
   if (existing) return existing;
 
-  // Load the project to derive participants
   const project = await Project.findById(projectId)
-    .select('clientId freelancerId')
+    .select('client freelancer')
     .lean();
 
   if (!project) {
     throw Object.assign(new Error('Project not found.'), { statusCode: 404 });
   }
-  if (!project.clientId || !project.freelancerId) {
+  if (!project.client || !project.freelancer) {
     throw Object.assign(
       new Error('Project must have both a client and a freelancer before a conversation can be created.'),
       { statusCode: 400 },
     );
   }
 
-  const conversation = await Conversation.create({
-    projectId,
-    clientId:     project.clientId,
-    freelancerId: project.freelancerId,
-    // participants pre-save hook will populate from clientId + freelancerId
+  try {
+    const conversation = await Conversation.create({
+      projectId,
+      clientId:     project.client,
+      freelancerId: project.freelancer,
+    });
+    logger.info(`message.service: conversation created for project ${projectId}`);
+    return conversation;
+  } catch (err) {
+    // ✅ FIXED: race condition — if two sockets (client + freelancer) both
+    // call join_room at nearly the same moment and the conversation didn't
+    // exist yet, both could pass the findOne check above before either
+    // finishes creating it. Whichever create() call loses the race hits
+    // MongoDB's unique index on projectId (E11000). Previously this error
+    // propagated up to socket.js's join_room handler, which caught it and
+    // emitted a silent 'error' event — that socket never called socket.join(),
+    // so that user's connection never actually joined the room and silently
+    // never received real-time broadcasts, even though nothing looked wrong
+    // on their screen. Now we just re-fetch the conversation the other
+    // request already created, instead of failing.
+    if (err.code === 11000) {
+      const conv = await Conversation.findOne({ projectId });
+      if (conv) return conv;
+    }
+    throw err;
+  }
+}
+/* ─────────────────────────────────────────────
+   createMessage
+   Persists a new message, updates the Conversation's lastMessage
+   snapshot, and increments the recipient's unread counter.
+
+   @param {Object} params
+   @param {string} params.conversationId
+   @param {string} params.senderId
+   @param {string} [params.text]
+   @param {string} [params.fileUrl]
+   @param {string} [params.fileType]
+   @returns {Promise<Message>} populated message document
+───────────────────────────────────────────── */
+async function createMessage({ conversationId, senderId, text = '', fileUrl = null, fileType = null }) {
+  const conv = await Conversation.findById(conversationId);
+  if (!conv) {
+    throw Object.assign(new Error('Conversation not found.'), { statusCode: 404 });
+  }
+  if (!conv.isMember(senderId)) {
+    throw Object.assign(new Error('Access denied.'), { statusCode: 403 });
+  }
+
+  const message = await Message.create({
+    conversationId,
+    sender: senderId,
+    messageText: text,
+    fileUrl,
+    fileType,
+    readBy: [{ userId: senderId, readAt: new Date() }],
   });
 
-  logger.info(`message.service: conversation created for project ${projectId}`);
-  return conversation;
+  await message.populate('sender', 'name role');
+
+  const recipientId = conv.getOtherParticipant(senderId);
+  conv.updateLastMessage(message, message.sender?.name || '');
+  if (recipientId) conv.incrementUnread(recipientId);
+  await conv.save();
+
+  logger.info(`message.service: message created in conversation ${conversationId} by user ${senderId}`);
+  return message;
 }
 
 /* ─────────────────────────────────────────────
@@ -238,7 +297,6 @@ async function getUnreadCountForUser(userId) {
 
   return conversations.reduce((total, conv) => {
     const counts = conv.unreadCounts || {};
-    // unreadCounts may be a plain object from .lean()
     const val = counts instanceof Map
       ? (counts.get(userId.toString()) || 0)
       : (counts[userId.toString()] || 0);
@@ -267,6 +325,7 @@ async function closeConversation(projectId) {
 
 module.exports = {
   getOrCreateConversation,
+  createMessage,
   getConversationById,
   getInboxForUser,
   getMessageHistory,

@@ -76,10 +76,10 @@ async function boot() {
     process.exit(1);
   });
 
-  // ── Step 3: Attach Socket.io (uncomment when socket.js is ready) ───────────
-  // const { initSocket } = require('./socket');
-  // initSocket(server);
-  // logger.info('[Socket] Socket.io attached to HTTP server');
+// ── Step 3: Attach Socket.io ────────────────────────────────────────────
+  const { init } = require('./socket');
+  init(server);
+  logger.info('[Socket] Socket.io attached to HTTP server');
 
   // ── Step 4: Start background cron jobs (uncomment as each is built) ────────
   // require('./jobs/rebuildTfidfIndex');

@@ -184,3 +184,39 @@ exports.getMyJobs = async (clientId, query) => {
 
   return { jobs, pagination: { page: Number(page), limit: limitN, totalDocs, totalPages } };
 };
+
+/* ══════════════════════════════════════════════════════════════════
+   markJobComplete — the ASSIGNED FREELANCER only (verified via an
+   accepted Proposal on this job, since Job.js has no direct field
+   linking a job to a working freelancer). Only valid from 'in_progress'.
+══════════════════════════════════════════════════════════════════ */
+exports.markJobComplete = async (jobId, freelancerId) => {
+  const job = await Job.findById(jobId);
+  if (!job) {
+    const err = new Error('Job not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (job.status !== 'in_progress') {
+    const err = new Error('Only jobs currently in progress can be marked completed');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const acceptedProposal = await Proposal.findOne({
+    job: jobId,
+    freelancer: freelancerId,
+    status: 'accepted',
+  });
+
+  if (!acceptedProposal) {
+    const err = new Error('Forbidden — you do not have an accepted proposal on this job');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  job.status = 'completed';
+  await job.save();
+  return job;
+};

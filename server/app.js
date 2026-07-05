@@ -49,9 +49,10 @@ const jobRoutes          = require('./routes/job.routes');
 const proposalRoutes     = require('./routes/proposal.routes');
 const matchRoutes        = require('./routes/match.routes'); // FIX: was commented out
 // const paymentRoutes   = require('./routes/payment.routes');
-// const messageRoutes   = require('./routes/message.routes');
+ const messageRoutes   = require('./routes/message.routes');
 // const reputationRoutes = require('./routes/reputation.routes');
 // const adminRoutes     = require('./routes/admin.routes');
+const projectRoutes = require('./routes/project.routes');
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 const app = express();
@@ -160,9 +161,10 @@ app.use('/api/jobs',        jobRoutes);
 app.use('/api/proposals',   proposalRoutes);
 app.use('/api/match',       matchRoutes); // FIX: was commented out
 // app.use('/api/payments',   paymentRoutes);
-// app.use('/api/messages',   messageRoutes);
+app.use('/api/messages',   messageRoutes);
 // app.use('/api/reputation', reputationRoutes);
 // app.use('/api/admin',      adminRoutes);
+app.use('/api/projects', projectRoutes);
 
 // ─── 9. 404 handler ───────────────────────────────────────────────────────────
 app.use((req, res) => {

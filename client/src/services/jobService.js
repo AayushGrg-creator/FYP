@@ -14,6 +14,8 @@ export const jobService = {
   create: (jobData) => api.post('/jobs', jobData),
   update: (id, jobData) => api.put(`/jobs/${id}`, jobData),
   delete: (id) => api.delete(`/jobs/${id}`),
+  // Freelancer-only: mark a job they're assigned to (accepted proposal) as completed
+  markComplete: (id) => api.patch(`/jobs/${id}/complete`),
   // NOTE: proposal submission lives in proposalService.js (POST /api/proposals),
   // not here — proposals are a top-level resource, not nested under jobs.
 };

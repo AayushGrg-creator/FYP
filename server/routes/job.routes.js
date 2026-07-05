@@ -29,4 +29,8 @@ router.route('/:id')
   .put(jobController.updateJob)
   .delete(jobController.deleteJob);
 
+/* Freelancer-only: mark a job they're assigned to (accepted proposal) complete */
+router.route('/:id/complete')
+  .patch(checkRole(['freelancer']), jobController.markJobComplete);
+
 module.exports = router;

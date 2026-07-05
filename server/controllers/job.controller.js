@@ -105,3 +105,18 @@ exports.getMyJobs = async (req, res) => {
     fail(res, err.message, err.statusCode || 500);
   }
 };
+
+/* ══════════════════════════════════════════════════════════════════
+   PATCH /api/jobs/:id/complete
+   Assigned freelancer only (must hold an accepted Proposal on this
+   job). Only valid while the job is 'in_progress'.
+══════════════════════════════════════════════════════════════════ */
+exports.markJobComplete = async (req, res) => {
+  try {
+    const job = await jobService.markJobComplete(req.params.id, req.user._id);
+    ok(res, { message: 'Job marked as completed', job });
+  } catch (err) {
+    console.error('[job.markJobComplete]', err);
+    fail(res, err.message, err.statusCode || 500);
+  }
+};

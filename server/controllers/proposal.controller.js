@@ -2,6 +2,7 @@
 
 const Proposal = require('../models/Proposal');
 const Job      = require('../models/Job');
+const Project  = require('../models/Project');
 
 const ok   = (res, data, status = 200) => res.status(status).json({ success: true,  ...data });
 const fail = (res, msg,  status = 400) => res.status(status).json({ success: false, message: msg });
@@ -48,6 +49,10 @@ exports.createProposal = async (req, res) => {
    Returns the authenticated user's own proposals (freelancer)
    or proposals on jobs they posted (client).
    Supports optional ?status= filter.
+
+   NOTE: User schema field is `name` (not firstName/lastName), and
+   trustScore lives on FreelancerProfile, not User — removed from this
+   populate since it was always silently undefined here.
 ══════════════════════════════════════════════════════════════════ */
 exports.getProposals = async (req, res) => {
   try {
@@ -68,7 +73,7 @@ exports.getProposals = async (req, res) => {
 
     const proposals = await Proposal.find(filter)
       .populate('job', 'title budgetType budgetAmount status')
-      .populate('freelancer', 'firstName lastName email avatarUrl trustScore')
+      .populate('freelancer', 'name email avatarUrl')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -87,7 +92,7 @@ exports.getProposalById = async (req, res) => {
   try {
     const proposal = await Proposal.findById(req.params.id)
       .populate('job', 'title client budgetType budgetAmount status')
-      .populate('freelancer', 'firstName lastName email avatarUrl trustScore');
+      .populate('freelancer', 'name email avatarUrl');
 
     if (!proposal) return fail(res, 'Proposal not found', 404);
 
@@ -119,7 +124,7 @@ exports.getProposalsForJob = async (req, res) => {
     }
 
     const proposals = await Proposal.find({ job: req.params.jobId })
-      .populate('freelancer', 'firstName lastName email avatarUrl trustScore')
+      .populate('freelancer', 'name email avatarUrl')
       .sort({ matchScore: -1, createdAt: -1 })
       .lean();
 
@@ -167,6 +172,13 @@ exports.updateProposal = async (req, res) => {
    PATCH /api/proposals/:id/status
    Client owner only. Accept or reject a proposal on their job.
    (Accepting auto-rejects sibling proposals via the model's post-save hook.)
+
+   Accepting a proposal:
+     1. Flips the parent Job's status from 'open' to 'in_progress'.
+     2. Creates the Project document — the container that chat,
+        milestones, and file management all depend on. Without this,
+        no Conversation can ever be created and the workspace page
+        (/workspace/:projectId) has nothing to route to.
 ══════════════════════════════════════════════════════════════════ */
 exports.updateProposalStatus = async (req, res) => {
   try {
@@ -188,7 +200,24 @@ exports.updateProposalStatus = async (req, res) => {
     proposal.status = status;
     await proposal.save();
 
-    ok(res, { message: `Proposal ${status}`, proposal });
+    let project = null;
+
+    if (status === 'accepted') {
+      if (proposal.job.status === 'open') {
+        proposal.job.status = 'in_progress';
+        await proposal.job.save();
+      }
+
+      project = await Project.create({
+        client:       proposal.job.client,
+        freelancer:   proposal.freelancer,
+        job:          proposal.job._id,
+        proposal:     proposal._id,
+        agreedAmount: proposal.bidAmount,
+      });
+    }
+
+    ok(res, { message: `Proposal ${status}`, proposal, project });
   } catch (err) {
     console.error('[proposal.updateProposalStatus]', err);
     fail(res, err.message, 500);

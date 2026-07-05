@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import { getMyJobs, updateJobStatus, jobService } from '../../services/jobService';
 import { getJobProposals, acceptProposal, rejectProposal } from '../../services/proposalService';
+import projectService from '../../services/projectService';
 
 const TABS = ['Overview', 'My Jobs', 'Proposals'];
 
@@ -56,6 +57,13 @@ export default function ClientDashboard() {
   const [actionLoading, setActionL] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
 
+  // ── Active workspaces (Projects) for this client ────────────────────────
+  const [projects, setProjects] = useState([]);
+
+  useEffect(() => {
+    projectService.getMine().then((res) => setProjects(res.projects || [])).catch(() => {});
+  }, []);
+
   // ── Load jobs ──────────────────────────────────────────────────────────────
   // NOTE: Job.status enum is 'open' | 'in_progress' | 'completed' | 'disputed'
   // (underscore, no 'cancelled' state exists on the schema).
@@ -97,15 +105,21 @@ export default function ClientDashboard() {
     loadProposals(job._id);
   };
 
-  const handleAccept = async (proposalId) => {
-    setActionL(proposalId);
-    try {
-      await acceptProposal(proposalId);
-      await loadProposals(selectedJob._id);
-      await loadJobs();
-    } catch {}
-    setActionL(null);
-  };
+ const handleAccept = async (proposalId) => {
+  setActionL(proposalId);
+  try {
+    const result = await acceptProposal(proposalId);
+    await loadProposals(selectedJob._id);
+    await loadJobs();
+
+    // Redirect to the shared workspace now that a Project exists
+    if (result?.project?._id) {
+      navigate(`/workspace/${result.project._id}`);
+      return; // skip clearing actionLoading since we're navigating away
+    }
+  } catch {}
+  setActionL(null);
+};
 
   const handleReject = async (proposalId) => {
     setActionL(proposalId + 'r');
@@ -255,6 +269,26 @@ export default function ClientDashboard() {
                 <Empty message="No jobs posted yet." cta="Post your first job" href="/jobs/post" />
               )}
             </div>
+
+            {/* ── Active Workspaces (Projects) ── */}
+            {projects.length > 0 && (
+              <div style={styles.overviewCard}>
+                <div style={styles.cardHeader}>
+                  <span style={styles.cardTitle}>Active Workspaces</span>
+                </div>
+                {projects.map((p) => (
+                  <div key={p._id} style={styles.jobRow}>
+                    <div style={styles.jobRowLeft}>
+                      <div>
+                        <div style={styles.jobRowTitle}>{p.job?.title || 'Project'}</div>
+                        <div style={styles.jobRowSub}>with {p.freelancer?.name} · {p.status}</div>
+                      </div>
+                    </div>
+                    <Link to={`/workspace/${p._id}`} style={styles.tinyLinkBtn}>Open →</Link>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div style={styles.overviewCard}>
               <div style={styles.cardHeader}><span style={styles.cardTitle}>Quick Tips</span></div>

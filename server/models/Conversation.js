@@ -125,10 +125,11 @@ const ConversationSchema = new Schema(
 /* ─────────────────────────────────────────────
    Pre-save: keep participants array in sync with clientId / freelancerId
 ───────────────────────────────────────────── */
-ConversationSchema.pre('save', function (next) {
+ConversationSchema.pre('validate', function (next) {
   this.participants = [this.clientId, this.freelancerId];
   next();
 });
+
 
 /* ─────────────────────────────────────────────
    Instance method: isMember(userId)

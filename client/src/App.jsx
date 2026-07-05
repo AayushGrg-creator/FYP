@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import EditProfilePage from './pages/profile/EditProfilePage';
+import ProjectWorkspacePage from './pages/workspace/ProjectWorkspacePage';
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
 
@@ -30,6 +32,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+         <SocketProvider>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
@@ -54,6 +57,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<RoleDashboard />} />
+              <Route path="/workspace/:projectId" element={<ProjectWorkspacePage />} />
               <Route path="/profile" element={<FreelancerProfilePage />} />
               <Route path="/profile/edit" element={<EditProfilePage />} />
 
@@ -73,6 +77,7 @@ function App() {
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </SocketProvider>
       </AuthProvider>
     </BrowserRouter>
   );

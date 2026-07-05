@@ -443,7 +443,7 @@ export default function ProjectWorkspacePage() {
     try {
       setLoading(true);
       setError(null);
-      const { data } = await api.get(`/projects/${projectId}`);
+      const data = await api.get(`/projects/${projectId}`);
       setProject(data.project);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load project');
