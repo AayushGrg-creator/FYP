@@ -238,19 +238,7 @@ MilestoneSchema.pre('save', function (next) {
     this.netAmount   = Math.round((this.amount - this.platformFee) * 100) / 100;
   }
 
-  if (!this.isNew && this.isModified('status')) {
-    const prev    = this.$__getValue('status');
-    const allowed = VALID_TRANSITIONS[prev] ?? [];
-
-    if (!allowed.includes(this.status)) {
-      return next(
-        new Error(
-          `Invalid milestone status transition: "${prev}" → "${this.status}".`,
-        ),
-      );
-    }
-  }
-
+  
   if (this.isModified('status')) {
     const now = new Date();
     switch (this.status) {

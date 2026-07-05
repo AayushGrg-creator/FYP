@@ -236,6 +236,7 @@ ProjectSchema.methods.recalculateProgress = async function () {
 
   if (!milestones.length) {
     this.progressPercent = 0;
+    this.amountReleased  = 0; 
     return this.save();
   }
 
@@ -245,6 +246,7 @@ ProjectSchema.methods.recalculateProgress = async function () {
     .reduce((sum, m) => sum + m.amount, 0);
 
   this.progressPercent = Math.round((releasedAmount / totalAmount) * 100);
+this.amountReleased  = releasedAmount; 
 
   if (this.progressPercent === 100) {
     this.status = 'completed';

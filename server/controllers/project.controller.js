@@ -63,13 +63,13 @@ exports.getMyProjects = async (req, res) => {
 ══════════════════════════════════════════════════════════════════ */
 exports.getProjectById = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id)
-      .populate('client',     'name email avatarUrl trustScore')
-      .populate('freelancer', 'name email avatarUrl trustScore')
-      .populate('job',        'title description category budgetAmount budgetType skillsRequired')
-      .populate('files.uploadedBy', 'name avatarUrl')
-      .lean();
-
+   const project = await Project.findById(req.params.id)
+  .populate('client',     'name email avatarUrl trustScore')
+  .populate('freelancer', 'name email avatarUrl trustScore')
+  .populate('job',        'title description category budgetAmount budgetType skillsRequired')
+  .populate('milestones')
+  .populate('files.uploadedBy', 'name avatarUrl')
+  .lean();
     if (!project) {
       return fail(res, 'Project not found.', 404);
     }

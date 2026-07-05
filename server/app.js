@@ -48,11 +48,12 @@ const profileRoutes      = require('./routes/profile.routes');
 const jobRoutes          = require('./routes/job.routes');
 const proposalRoutes     = require('./routes/proposal.routes');
 const matchRoutes        = require('./routes/match.routes'); // FIX: was commented out
-// const paymentRoutes   = require('./routes/payment.routes');
+// const paymentRoutes   = require('./routes/payment.routes'); // NOTE: currently broken — see payment.routes.js authorise/checkRole mismatch. Fix before uncommenting.
  const messageRoutes   = require('./routes/message.routes');
 // const reputationRoutes = require('./routes/reputation.routes');
 // const adminRoutes     = require('./routes/admin.routes');
 const projectRoutes = require('./routes/project.routes');
+const milestoneRoutes = require('./routes/milestone.routes'); // NEW
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 const app = express();
@@ -165,6 +166,7 @@ app.use('/api/messages',   messageRoutes);
 // app.use('/api/reputation', reputationRoutes);
 // app.use('/api/admin',      adminRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/milestones', milestoneRoutes); // NEW
 
 // ─── 9. 404 handler ───────────────────────────────────────────────────────────
 app.use((req, res) => {

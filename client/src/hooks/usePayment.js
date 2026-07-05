@@ -1,97 +1,94 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from '../utils/constants';
+import api from '../services/api';
 
 /**
- * usePayment Custom Hook
+ * usePayment
  * Path: client/src/hooks/usePayment.js
- * * Coordinates financial transaction pipelines, escrow milestone funding, 
- * and user payout history for the marketplace platform.
+ *
+ * Wraps wallet-level endpoints: balance, transaction history, withdraw.
+ * Uses the shared `api` service (same one used everywhere else in the app),
+ * which relies on the httpOnly `tt_session` cookie for auth -- NOT a
+ * localStorage token. Manually attaching an Authorization header here
+ * would silently fail, since httpOnly cookies are deliberately invisible
+ * to JavaScript.
+ *
+ * Milestone funding/approval/dispute are NOT here -- those are handled
+ * directly via milestoneService in the components that need them (see
+ * ProjectWorkspacePage.jsx), since they act on a specific milestone, not
+ * the user's wallet as a whole.
  */
 export function usePayment() {
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [balance, setBalance]           = useState(0);
+  const [transactions, setTransactions] = useState([]);
+  const [pagination, setPagination]     = useState({ total: 0, page: 1, pages: 1 });
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
+    return () => { isMountedRef.current = false; };
   }, []);
 
-  // ── Fetch Transaction History Registry ──
-  const fetchPaymentHistory = useCallback(async () => {
-    setLoading(true);
+  const fetchBalance = useCallback(async () => {
     setError(null);
     try {
-      const token = localStorage.getItem('tt_token');
-      const response = await axios.get(`${API_BASE_URL}/payments/history`, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' }
-      });
-      
-      if (isMountedRef.current) {
-        setPayments(response.data.data || []);
-      }
+      const data = await api.get('/payments/balance');
+      if (isMountedRef.current) setBalance(data.walletBalance || 0);
+      return data.walletBalance || 0;
     } catch (err) {
-      if (isMountedRef.current) {
-        setError(err.response?.data?.message || 'Failed to retrieve transaction registry.');
-      }
-    } finally {
-      if (isMountedRef.current) setLoading(false);
+      const msg = err.response?.data?.message || 'Failed to load wallet balance.';
+      if (isMountedRef.current) setError(msg);
+      throw new Error(msg);
     }
   }, []);
 
-  // ── Escrow Milestone Funding Pipeline ──
-  const fundMilestone = useCallback(async (milestoneId, amount) => {
+  const fetchTransactionHistory = useCallback(async (page = 1, limit = 20) => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('tt_token');
-      const response = await axios.post(`${API_BASE_URL}/payments/escrow/fund`, 
-        { milestoneId, amount },
-        { headers: { Authorization: token ? `Bearer ${token}` : '' } }
-      );
-      
-      // Refresh list post-mutation to maintain data integrity with the database truth
-      await fetchPaymentHistory();
-      return response.data;
+      const data = await api.get('/payments/transactions', { params: { page, limit } });
+      if (isMountedRef.current) {
+        setTransactions(data.data || []);
+        setPagination(data.pagination || { total: 0, page: 1, pages: 1 });
+      }
+      return data;
     } catch (err) {
-      const msg = err.response?.data?.message || 'Escrow funding request denied.';
+      const msg = err.response?.data?.message || 'Failed to load transaction history.';
       if (isMountedRef.current) setError(msg);
       throw new Error(msg);
     } finally {
       if (isMountedRef.current) setLoading(false);
     }
-  }, [fetchPaymentHistory]);
+  }, []);
 
-  // ── Freelancer Payout Release Hook ──
-  const releasePayment = useCallback(async (milestoneId) => {
+  const withdraw = useCallback(async (amount) => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('tt_token');
-      await axios.post(`${API_BASE_URL}/payments/escrow/release`, 
-        { milestoneId },
-        { headers: { Authorization: token ? `Bearer ${token}` : '' } }
-      );
-      await fetchPaymentHistory();
+      const data = await api.post('/payments/withdraw', { amount });
+      // Refresh balance + history so the UI reflects the withdrawal immediately
+      await Promise.all([fetchBalance(), fetchTransactionHistory(pagination.page)]);
+      return data;
     } catch (err) {
-      const msg = err.response?.data?.message || 'Payout release authorized failure.';
+      const msg = err.response?.data?.message || 'Withdrawal failed.';
       if (isMountedRef.current) setError(msg);
       throw new Error(msg);
     } finally {
       if (isMountedRef.current) setLoading(false);
     }
-  }, [fetchPaymentHistory]);
+  }, [fetchBalance, fetchTransactionHistory, pagination.page]);
 
   return {
-    payments,
+    balance,
+    transactions,
+    pagination,
     loading,
     error,
-    fetchPaymentHistory,
-    fundMilestone,
-    releasePayment
+    fetchBalance,
+    fetchTransactionHistory,
+    withdraw,
   };
 }
+
+export default usePayment;

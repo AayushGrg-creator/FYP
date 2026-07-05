@@ -111,6 +111,13 @@ const userSchema = new mongoose.Schema(
       default : 'active',
     },
 
+     // ── Wallet / earnings ─────────────────────────────────────────────────────
+    walletBalance: {
+      type    : Number,
+      default : 0,
+      min     : [0, 'Wallet balance cannot be negative'],
+    },
+    
     // ── Password reset ────────────────────────────────────────────────────────
     passwordResetToken   : { type: String, select: false },
     passwordResetExpires : { type: Date,   select: false },

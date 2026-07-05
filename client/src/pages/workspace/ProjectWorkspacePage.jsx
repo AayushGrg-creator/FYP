@@ -3,26 +3,6 @@
  *
  * Unified project workspace for Task Tide.
  *
- * Layout (desktop — 1200px+)
- * ──────────────────────────
- *  ┌─────────────────────────────────────────────────────┐
- *  │  Header bar — project title, status pill, actions   │
- *  ├───────────────────────┬─────────────────────────────┤
- *  │                       │                             │
- *  │   LEFT PANEL          │   RIGHT PANEL               │
- *  │   Contract details    │   ChatPanel (real-time)     │
- *  │   • Overview          │                             │
- *  │   • Milestones        │                             │
- *  │   • Files             │                             │
- *  │   • Participants      │                             │
- *  │                       │                             │
- *  └───────────────────────┴─────────────────────────────┘
- *
- * Layout (mobile — collapses to tabs)
- *
- * Aesthetic: dark editorial — dark slate background, razor-thin borders,
- * monospace data labels, lime-green accent for active states.
- *
  * Route: /workspace/:projectId
  */
 
@@ -39,6 +19,7 @@ import { useSocket }    from '../../hooks/useSocket';
 import ChatPanel        from '../../components/chat/ChatPanel';
 import api              from '../../services/api';
 import projectFileService from '../../services/projectFileService';
+import milestoneService from '../../services/milestoneService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 async function handleDownload(url, filename) {
@@ -88,8 +69,8 @@ function daysLeft(iso) {
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
   return days;
 }
-
-// ─── Status pill ──────────────────────────────────────────────────────────────
+const ARCHIVED_STATUSES = ['released', 'cancelled', 'resolved', 'refunded'];
+// ─── Status pill (project-level escrow status) ────────────────────────────────
 function StatusPill({ status }) {
   const map = {
     active:    { label: 'Active',    bg:'#052e16', color:'#4ade80', border:'#166534' },
@@ -120,14 +101,22 @@ function StatusPill({ status }) {
 }
 
 // ─── Milestone row ────────────────────────────────────────────────────────────
-function MilestoneRow({ milestone, role, onApprove, onDispute }) {
+// FIXED against the real Milestone.js schema:
+//   - field is `name`, not `title`
+//   - real status enum: created | funded | pending_approval | released |
+//     disputed | resolved | refunded | cancelled  (NOT pending/submitted/approved)
+function MilestoneRow({ milestone, role, onFund, onSubmit, onApprove, onDispute, onDelete, onCancel,busy }) {
   const statusStyles = {
-    pending:   { color:'#fbbf24', icon:'○' },
-    submitted: { color:'#60a5fa', icon:'◎' },
-    approved:  { color:'#4ade80', icon:'✓' },
-    disputed:  { color:'#f87171', icon:'!' },
+    created:          { color:'#64748b', icon:'○', label: 'Created' },
+    funded:           { color:'#60a5fa', icon:'◉', label: 'Funded' },
+    pending_approval: { color:'#fbbf24', icon:'◎', label: 'Pending Approval' },
+    released:         { color:'#4ade80', icon:'✓', label: 'Released' },
+    disputed:         { color:'#f87171', icon:'!', label: 'Disputed' },
+    resolved:         { color:'#a78bfa', icon:'✓', label: 'Resolved' },
+    refunded:         { color:'#94a3b8', icon:'↩', label: 'Refunded' },
+    cancelled:        { color:'#475569', icon:'✕', label: 'Cancelled' },
   };
-  const s = statusStyles[milestone.status] || statusStyles.pending;
+  const s = statusStyles[milestone.status] || statusStyles.created;
   const days = daysLeft(milestone.dueDate);
 
   return (
@@ -136,68 +125,158 @@ function MilestoneRow({ milestone, role, onApprove, onDispute }) {
         padding:      '14px 16px',
         borderBottom: '1px solid rgba(255,255,255,0.05)',
         display:      'flex',
-        alignItems:   'center',
-        gap:          12,
+        flexDirection:'column',
+        gap:          10,
       }}
     >
-      <span style={{ color:s.color, fontFamily:'monospace', fontSize:14, flexShrink:0 }}>
-        {s.icon}
-      </span>
+      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+        <span style={{ color:s.color, fontFamily:'monospace', fontSize:14, flexShrink:0 }}>
+          {s.icon}
+        </span>
 
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:13, fontWeight:500, color:'#e2e8f0', marginBottom:3 }}>
-          {milestone.title}
-        </div>
-        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-          <span style={{ fontSize:11, color:'#64748b', fontFamily:'monospace' }}>
-            Due {formatDate(milestone.dueDate)}
-          </span>
-          {days !== null && milestone.status === 'pending' && (
-            <span
-              style={{
-                fontSize:11,
-                fontFamily:'monospace',
-                color: days < 0 ? '#f87171' : days < 3 ? '#fbbf24' : '#4ade80',
-              }}
-            >
-              {days < 0 ? `${Math.abs(days)}d overdue` : `${days}d left`}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:13, fontWeight:500, color:'#e2e8f0', marginBottom:3 }}>
+            {milestone.name}
+          </div>
+          <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+            <span style={{ fontSize:11, color:s.color, fontFamily:'monospace' }}>
+              {s.label}
             </span>
-          )}
+            <span style={{ fontSize:11, color:'#64748b', fontFamily:'monospace' }}>
+              Due {formatDate(milestone.dueDate)}
+            </span>
+            {days !== null && !['released','refunded','resolved','cancelled'].includes(milestone.status) && (
+              <span
+                style={{
+                  fontSize:11,
+                  fontFamily:'monospace',
+                  color: days < 0 ? '#f87171' : days < 3 ? '#fbbf24' : '#4ade80',
+                }}
+              >
+                {days < 0 ? `${Math.abs(days)}d overdue` : `${days}d left`}
+              </span>
+            )}
+          </div>
         </div>
+
+        <span style={{ fontSize:13, color:'#a3e635', fontFamily:'monospace', flexShrink:0 }}>
+          {formatNPR(milestone.amount)}
+        </span>
       </div>
 
-      <span style={{ fontSize:13, color:'#a3e635', fontFamily:'monospace', flexShrink:0 }}>
-        {formatNPR(milestone.amount)}
-      </span>
+      {/* ── Client: mark as funded (placeholder for real payment) ── */}
+{role === 'client' && milestone.status === 'created' && (
+  <div style={{ display: 'flex', gap: 6 }}>
+    <button
+      onClick={() => onFund(milestone._id)}
+      disabled={busy}
+      style={{
+        background:   '#0c1a4a', border: '1px solid #1d4ed8', borderRadius: 6,
+        color: '#60a5fa', fontSize: 11, padding: '5px 12px',
+        cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'monospace', opacity: busy ? 0.6 : 1,
+      }}
+    >
+      {busy ? 'Working…' : '💰 Mark as Funded'}
+    </button>
+    <button
+      onClick={() => onDelete(milestone._id)}
+      disabled={busy}
+      style={{
+        background: '#450a0a', border: '1px solid #7f1d1d', borderRadius: 6,
+        color: '#f87171', fontSize: 11, padding: '5px 12px',
+        cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'monospace', opacity: busy ? 0.6 : 1,
+      }}
+    >
+      🗑 Delete
+    </button>
+  </div>
+)}
+{role === 'client' && milestone.status === 'cancelled' && (
+  <button
+    onClick={() => onDelete(milestone._id)}
+    disabled={busy}
+    style={{
+      alignSelf: 'flex-start',
+      background: '#450a0a', border: '1px solid #7f1d1d', borderRadius: 6,
+      color: '#f87171', fontSize: 11, padding: '5px 12px',
+      cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'monospace', opacity: busy ? 0.6 : 1,
+    }}
+  >
+    🗑 Delete
+  </button>
+)}
+{/* ── Client: cancel a funded (not-yet-submitted) milestone ── */}
+{role === 'client' && milestone.status === 'funded' && (
+  <button
+    onClick={() => onCancel(milestone._id)}
+    disabled={busy}
+    style={{
+      alignSelf: 'flex-start',
+      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6,
+      color: '#94a3b8', fontSize: 11, padding: '5px 12px',
+      cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'monospace', opacity: busy ? 0.6 : 1,
+    }}
+  >
+    {busy ? 'Working…' : '✕ Cancel Milestone'}
+  </button>
+)}
+<div
+  style={{
+    padding:      '14px 16px',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    display:      'flex',
+    flexDirection:'column',
+    gap:          10,
+    opacity:      milestone.status === 'cancelled' ? 0.45 : 1,
+  }}
+></div>
+      {/* ── Freelancer: submit work ── */}
+      {role === 'freelancer' && milestone.status === 'funded' && (
+        <button
+          onClick={() => onSubmit(milestone._id)}
+          disabled={busy}
+          style={{
+            alignSelf: 'flex-start',
+            background:   '#0c1a4a', border: '1px solid #1d4ed8', borderRadius: 6,
+            color: '#60a5fa', fontSize: 11, padding: '5px 12px',
+            cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'monospace', opacity: busy ? 0.6 : 1,
+          }}
+        >
+          {busy ? 'Working…' : '📤 Submit Work'}
+        </button>
+      )}
 
-      {role === 'client' && milestone.status === 'submitted' && (
-        <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+      {/* ── Client: approve / dispute submitted work ── */}
+      {role === 'client' && milestone.status === 'pending_approval' && (
+        <div style={{ display:'flex', gap:6 }}>
+          {milestone.submission?.deliverableUrl && (
+            <a
+              href={milestone.submission.deliverableUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 11, color: '#60a5fa', fontFamily: 'monospace', alignSelf: 'center', marginRight: 6 }}
+            >
+              View submission →
+            </a>
+          )}
           <button
             onClick={() => onApprove(milestone._id)}
+            disabled={busy}
             style={{
-              background:   '#052e16',
-              border:       '1px solid #166534',
-              borderRadius: 6,
-              color:        '#4ade80',
-              fontSize:     11,
-              padding:      '4px 10px',
-              cursor:       'pointer',
-              fontFamily:   'monospace',
+              background:   '#052e16', border: '1px solid #166534', borderRadius: 6,
+              color: '#4ade80', fontSize: 11, padding: '4px 10px',
+              cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'monospace', opacity: busy ? 0.6 : 1,
             }}
           >
             Approve
           </button>
           <button
             onClick={() => onDispute(milestone._id)}
+            disabled={busy}
             style={{
-              background:   '#450a0a',
-              border:       '1px solid #7f1d1d',
-              borderRadius: 6,
-              color:        '#f87171',
-              fontSize:     11,
-              padding:      '4px 10px',
-              cursor:       'pointer',
-              fontFamily:   'monospace',
+              background:   '#450a0a', border: '1px solid #7f1d1d', borderRadius: 6,
+              color: '#f87171', fontSize: 11, padding: '4px 10px',
+              cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'monospace', opacity: busy ? 0.6 : 1,
             }}
           >
             Dispute
@@ -207,6 +286,268 @@ function MilestoneRow({ milestone, role, onApprove, onDispute }) {
     </div>
   );
 }
+// ─── Milestone timeline (visual progress strip) ───────────────────────────────
+function MilestoneTimeline({ milestones }) {
+  if (!milestones || milestones.length === 0) return null;
+
+  const sorted = milestones.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const dotStyles = {
+    created:          { fill: 'transparent', border: '#64748b', glow: 'none' },
+    funded:           { fill: '#60a5fa', border: '#60a5fa', glow: '0 0 8px rgba(96,165,250,0.5)' },
+    pending_approval: { fill: '#fbbf24', border: '#fbbf24', glow: '0 0 8px rgba(251,191,36,0.5)' },
+    released:         { fill: '#4ade80', border: '#4ade80', glow: '0 0 8px rgba(74,222,128,0.4)' },
+    disputed:         { fill: '#f87171', border: '#f87171', glow: '0 0 8px rgba(248,113,113,0.5)' },
+    resolved:         { fill: '#a78bfa', border: '#a78bfa', glow: 'none' },
+    refunded:         { fill: '#94a3b8', border: '#94a3b8', glow: 'none' },
+    cancelled:        { fill: 'transparent', border: '#334155', glow: 'none' },
+  };
+
+  const lineColor = (status) =>
+    ['released', 'resolved'].includes(status) ? '#4ade80' : 'rgba(255,255,255,0.1)';
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        overflowX: 'auto',
+        padding: '18px 4px 22px',
+        marginBottom: 4,
+      }}
+    >
+      {sorted.map((m, i) => {
+        const s = dotStyles[m.status] || dotStyles.created;
+        const isLast = i === sorted.length - 1;
+
+        return (
+          <div
+            key={m._id}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              flex: isLast ? '0 0 auto' : '1 1 0',
+              minWidth: 90,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 90 }}>
+              <div
+                title={m.status.replace('_', ' ')}
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  background: s.fill,
+                  border: `2px solid ${s.border}`,
+                  boxShadow: s.glow,
+                  flexShrink: 0,
+                  transition: 'all 0.2s ease',
+                }}
+              />
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  marginTop: 8,
+                  textAlign: 'center',
+                  maxWidth: 88,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {m.name}
+              </div>
+              <div
+                style={{
+                  fontSize: 10,
+                  color: '#64748b',
+                  fontFamily: 'monospace',
+                  marginTop: 2,
+                  textTransform: 'capitalize',
+                }}
+              >
+                {m.status.replace('_', ' ')}
+              </div>
+            </div>
+
+            {!isLast && (
+              <div
+                style={{
+                  height: 2,
+                  flex: 1,
+                  background: lineColor(m.status),
+                  marginTop: 7,
+                  minWidth: 20,
+                  transition: 'background 0.2s ease',
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Archived milestones (released / cancelled) — collapsed by default ───────
+function ArchivedMilestones({ milestones, role, onDelete, busy }) {
+  const [open, setOpen] = useState(false);
+  if (!milestones || milestones.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          background: 'none', border: 'none', color: '#64748b', cursor: 'pointer',
+          fontSize: 11, fontFamily: 'monospace', padding: '4px 0', display: 'flex',
+          alignItems: 'center', gap: 6,
+        }}
+      >
+        <span>{open ? '▾' : '▸'}</span>
+        Archived ({milestones.length})
+      </button>
+
+      {open && (
+        <div
+          style={{
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: 10,
+            overflow: 'hidden',
+            marginTop: 8,
+          }}
+        >
+          {milestones.map((m) => (
+            <MilestoneRow
+              key={m._id}
+              milestone={m}
+              role={role}
+              onFund={() => {}}
+              onSubmit={() => {}}
+              onApprove={() => {}}
+              onDispute={() => {}}
+              onDelete={onDelete}
+              onCancel={() => {}}
+              busy={busy === m._id}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+// ─── Create Milestone form (client-only) ──────────────────────────────────────
+function CreateMilestoneForm({ projectId, nextOrder, onCreated }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: '', description: '', amount: '', dueDate: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await milestoneService.create({
+        project:     projectId,
+        name:        form.name,
+        description: form.description,
+        amount:      Number(form.amount),
+        currency:    'NPR',
+        order:       nextOrder,
+        dueDate:     form.dueDate,
+      });
+      setForm({ name: '', description: '', amount: '', dueDate: '' });
+      setOpen(false);
+      await onCreated();
+    } catch (err) {
+      setError(err.message || 'Failed to create milestone.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          background: 'transparent', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 8,
+          color: '#94a3b8', fontSize: 12, padding: '8px 16px', cursor: 'pointer',
+          fontFamily: 'monospace', marginTop: 8,
+        }}
+      >
+        + Add Milestone
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{
+      display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12,
+      padding: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
+    }}>
+      {error && <div style={{ fontSize: 11, color: '#f87171', fontFamily: 'monospace' }}>{error}</div>}
+      <input
+        placeholder="Milestone name"
+        value={form.name}
+        onChange={(e) => set('name', e.target.value)}
+        required
+        minLength={3}
+        style={inputStyle}
+      />
+      <textarea
+        placeholder="Description (optional)"
+        value={form.description}
+        onChange={(e) => set('description', e.target.value)}
+        rows={2}
+        style={{ ...inputStyle, resize: 'vertical' }}
+      />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          type="number"
+          placeholder="Amount (NPR)"
+          value={form.amount}
+          onChange={(e) => set('amount', e.target.value)}
+          required
+          min={1}
+          style={{ ...inputStyle, flex: 1 }}
+        />
+        <input
+          type="date"
+          value={form.dueDate}
+          onChange={(e) => set('dueDate', e.target.value)}
+          required
+          style={{ ...inputStyle, flex: 1 }}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <button type="submit" disabled={saving} style={{
+          background: '#166534', border: 'none', borderRadius: 6, color: '#e2e8f0',
+          padding: '7px 16px', fontSize: 12, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'monospace',
+        }}>
+          {saving ? 'Creating…' : 'Create'}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} style={{
+          background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#94a3b8',
+          padding: '7px 16px', fontSize: 12, cursor: 'pointer', fontFamily: 'monospace',
+        }}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+const inputStyle = {
+  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6,
+  padding: '8px 10px', color: '#e2e8f0', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%',
+  boxSizing: 'border-box',
+};
 
 // ─── File row ─────────────────────────────────────────────────────────────────
 function FileRow({ file, currentUserId, isAdmin, onDelete, deleting }) {
@@ -248,8 +589,7 @@ function FileRow({ file, currentUserId, isAdmin, onDelete, deleting }) {
         </div>
       </div>
 
-      
-  <button
+      <button
         onClick={() => handleDownload(file.url, file.originalName)}
         style={{
           fontSize: 11, color: '#60a5fa', fontFamily: 'monospace',
@@ -260,8 +600,6 @@ function FileRow({ file, currentUserId, isAdmin, onDelete, deleting }) {
         Download
       </button>
 
-
-  
       {canDelete && (
         <button
           onClick={() => onDelete(file._id)}
@@ -283,7 +621,6 @@ function FileRow({ file, currentUserId, isAdmin, onDelete, deleting }) {
 // ─── Files panel ──────────────────────────────────────────────────────────────
 function FilesPanel({ projectId, files, onFilesChanged }) {
   const { user } = useContext(AuthContext);
-   console.log('current user:', user);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
@@ -304,6 +641,8 @@ function FilesPanel({ projectId, files, onFilesChanged }) {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+ 
 
   const handleDelete = async (fileId) => {
     if (!window.confirm('Delete this file? This cannot be undone.')) return;
@@ -477,14 +816,21 @@ function Section({ title, icon, children }) {
 }
 
 // ─── LEFT PANEL ───────────────────────────────────────────────────────────────
-function ContractPanel({ project, projectId, onApproveMilestone, onDisputeMilestone, onFilesChanged }) {
+function ContractPanel({
+  project, projectId, onFilesChanged,
+  onFundMilestone, onSubmitMilestone, onApproveMilestone, onDisputeMilestone, onDeleteMilestone, onCancelMilestone,
+  onMilestoneCreated, milestoneActionBusyId,
+}) {
   const { user } = useContext(AuthContext);
   if (!project) return null;
 
-  const totalAmount  = project.totalAmount || 0;
-  const released     = project.milestones?.filter((m) => m.status === 'approved')
+  // FIXED: real Project.js field is `agreedAmount`, not `totalAmount`.
+  // FIXED: real "paid out" status is `released`, not `approved`.
+  const totalAmount  = project.agreedAmount || 0;
+  const released     = project.milestones?.filter((m) => m.status === 'released')
                          .reduce((acc, m) => acc + m.amount, 0) || 0;
-  const progress     = totalAmount > 0 ? Math.round((released / totalAmount) * 100) : 0;
+  const progress     = project.progressPercent ?? (totalAmount > 0 ? Math.round((released / totalAmount) * 100) : 0);
+  const nextOrder     = (project.milestones?.length || 0) + 1;
 
   return (
     <div
@@ -569,28 +915,54 @@ function ContractPanel({ project, projectId, onApproveMilestone, onDisputeMilest
 
       {/* ── Milestones ── */}
       <Section title="Milestones" icon="🎯">
-        {project.milestones?.length > 0 ? (
-          <div
-            style={{
-              border:      '1px solid rgba(255,255,255,0.07)',
-              borderRadius:10,
-              overflow:    'hidden',
-            }}
-          >
-            {project.milestones.map((m) => (
-              <MilestoneRow
-                key={m._id}
-                milestone={m}
-                role={user?.role}
-                onApprove={onApproveMilestone}
-                onDispute={onDisputeMilestone}
-              />
-            ))}
-          </div>
-        ) : (
-          <p style={{ fontSize:13, color:'#334155', fontFamily:'monospace' }}>
-            No milestones defined yet.
-          </p>
+        <MilestoneTimeline milestones={project.milestones} />
+        {(() => {
+  const sorted = project.milestones?.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) || [];
+  const active = sorted.filter((m) => !ARCHIVED_STATUSES.includes(m.status));
+  const archived = sorted.filter((m) => ARCHIVED_STATUSES.includes(m.status));
+
+  return (
+    <>
+      {active.length > 0 ? (
+        <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, overflow: 'hidden' }}>
+          {active.map((m) => (
+            <MilestoneRow
+              key={m._id}
+              milestone={m}
+              role={user?.role}
+              onFund={onFundMilestone}
+              onSubmit={onSubmitMilestone}
+              onApprove={onApproveMilestone}
+              onDispute={onDisputeMilestone}
+              onDelete={onDeleteMilestone}
+              onCancel={onCancelMilestone}
+              busy={milestoneActionBusyId === m._id}
+            />
+          ))}
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, color: '#334155', fontFamily: 'monospace' }}>
+          No active milestones.
+        </p>
+      )}
+
+      <ArchivedMilestones
+        milestones={archived}
+        role={user?.role}
+        onDelete={onDeleteMilestone}
+        busy={milestoneActionBusyId}
+      />
+    </>
+  );
+})()}
+ 
+
+        {user?.role === 'client' && (
+          <CreateMilestoneForm
+            projectId={projectId}
+            nextOrder={nextOrder}
+            onCreated={onMilestoneCreated}
+          />
         )}
       </Section>
 
@@ -626,6 +998,7 @@ export default function ProjectWorkspacePage() {
   const [error,     setError]     = useState(null);
   const [activeTab, setActiveTab] = useState('contract'); // mobile tab: 'contract' | 'chat'
   const [isMobile,  setIsMobile]  = useState(window.innerWidth < 900);
+  const [milestoneActionBusyId, setMilestoneActionBusyId] = useState(null);
 
   // ── Responsive ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -659,26 +1032,92 @@ export default function ProjectWorkspacePage() {
   useEffect(() => { fetchProject(); }, [fetchProject]);
 
   // ── Milestone actions ────────────────────────────────────────────────────
-  const handleApproveMilestone = useCallback(async (milestoneId) => {
+  // FIXED: previously called /payments/milestones/:id/approve|dispute, which
+  // pointed at payment.controller.js's singular-path, differently-shaped
+  // milestone flow — mismatched with the real Milestone.js model entirely.
+  // Now uses the new dedicated milestone.routes.js endpoints.
+ const handleFundMilestone = useCallback(async (milestoneId) => {
+    setMilestoneActionBusyId(milestoneId);
     try {
-      await api.post(`/payments/milestones/${milestoneId}/approve`);
+      const data = await milestoneService.fund(milestoneId);
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl; // redirect to Khalti checkout
+      } else {
+        alert('Payment could not be started.');
+        setMilestoneActionBusyId(null);
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to start payment.');
+      setMilestoneActionBusyId(null);
+    }
+  }, []);
+
+  const handleSubmitMilestone = useCallback(async (milestoneId) => {
+    const deliverableUrl = window.prompt('Link to your completed work (e.g. GitHub, Google Drive, Figma):');
+    if (!deliverableUrl?.trim()) return;
+    const notes = window.prompt('Any notes for the client? (optional)') || '';
+    setMilestoneActionBusyId(milestoneId);
+    try {
+      await milestoneService.submit(milestoneId, { deliverableUrl: deliverableUrl.trim(), notes });
       await fetchProject();
     } catch (err) {
-      alert(err.response?.data?.message || 'Approval failed');
+      alert(err.message || 'Failed to submit work.');
+    } finally {
+      setMilestoneActionBusyId(null);
+    }
+  }, [fetchProject]);
+
+  const handleApproveMilestone = useCallback(async (milestoneId) => {
+    setMilestoneActionBusyId(milestoneId);
+    try {
+      await milestoneService.approve(milestoneId);
+      await fetchProject();
+    } catch (err) {
+      alert(err.message || 'Approval failed');
+    } finally {
+      setMilestoneActionBusyId(null);
     }
   }, [fetchProject]);
 
   const handleDisputeMilestone = useCallback(async (milestoneId) => {
     const reason = window.prompt('Describe the issue with this milestone:');
     if (!reason?.trim()) return;
+    setMilestoneActionBusyId(milestoneId);
     try {
-      await api.post(`/payments/milestones/${milestoneId}/dispute`, { reason });
+      await milestoneService.dispute(milestoneId, reason.trim());
       await fetchProject();
     } catch (err) {
-      alert(err.response?.data?.message || 'Dispute submission failed');
+      alert(err.message || 'Dispute submission failed');
+    } finally {
+      setMilestoneActionBusyId(null);
     }
   }, [fetchProject]);
 
+  const handleDeleteMilestone = useCallback(async (milestoneId) => {
+  if (!window.confirm('Delete this milestone? This cannot be undone.')) return;
+  setMilestoneActionBusyId(milestoneId);
+  try {
+    await milestoneService.delete(milestoneId);
+    await fetchProject();
+  } catch (err) {
+    alert(err.message || 'Failed to delete milestone.');
+  } finally {
+    setMilestoneActionBusyId(null);
+  }
+}, [fetchProject]);
+
+const handleCancelMilestone = useCallback(async (milestoneId) => {
+  if (!window.confirm('Cancel this milestone? It will be marked cancelled and grayed out, but its record is kept.')) return;
+  setMilestoneActionBusyId(milestoneId);
+  try {
+    await milestoneService.cancel(milestoneId);
+    await fetchProject();
+  } catch (err) {
+    alert(err.message || 'Failed to cancel milestone.');
+  } finally {
+    setMilestoneActionBusyId(null);
+  }
+}, [fetchProject]);
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -863,14 +1302,20 @@ export default function ProjectWorkspacePage() {
               borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.07)',
               overflow:    'hidden',
             }}
-          >
-            <ContractPanel
-              project={project}
-              projectId={projectId}
-              onApproveMilestone={handleApproveMilestone}
-              onDisputeMilestone={handleDisputeMilestone}
-              onFilesChanged={fetchProject}
-            />
+          ><ContractPanel
+  project={project}
+  projectId={projectId}
+  onFilesChanged={fetchProject}
+  onFundMilestone={handleFundMilestone}
+  onSubmitMilestone={handleSubmitMilestone}
+  onApproveMilestone={handleApproveMilestone}
+  onDisputeMilestone={handleDisputeMilestone}
+  onDeleteMilestone={handleDeleteMilestone}
+   onCancelMilestone={handleCancelMilestone}
+  onMilestoneCreated={fetchProject}
+  milestoneActionBusyId={milestoneActionBusyId}
+/>
+           
           </div>
         )}
 

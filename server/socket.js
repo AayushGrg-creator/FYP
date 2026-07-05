@@ -107,8 +107,30 @@ module.exports = {
 
     return io;
   },
+
   getIo: () => {
     if (!io) throw new Error('Socket.io not initialized!');
     return io;
+  },
+
+  /**
+   * emitToProjectRoom
+   * Broadcasts an event to everyone currently in a project's room.
+   * Used by payment/milestone controllers to notify both the client
+   * and freelancer in real time (e.g. "milestone funded", "funds released").
+   *
+   * There is no per-user room in this app -- sockets only ever join
+   * `project-${projectId}` rooms -- so this is the correct broadcast
+   * target as long as both parties have the workspace page open.
+   *
+   * Safe to call even if io hasn't been initialized yet (e.g. during
+   * tests or scripts) -- it will log a warning and no-op instead of throwing.
+   */
+  emitToProjectRoom: (projectId, event, payload) => {
+    if (!io) {
+      logger.warn(`[Socket] emitToProjectRoom('${event}') called before io was initialized -- event dropped`);
+      return;
+    }
+    io.to(`project-${projectId}`).emit(event, payload);
   },
 };

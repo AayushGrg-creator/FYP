@@ -13,6 +13,8 @@ import RoleDashboard from './pages/dashboard/RoleDashboard';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import PaymentsPage from './pages/payments/PaymentsPage';
+import KhaltiReturnPage from './pages/payments/KhaltiReturnPage';
 
 // Job Pages
 import JobBoardPage from './pages/jobs/JobBoardPage';
@@ -58,6 +60,7 @@ function App() {
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<RoleDashboard />} />
               <Route path="/workspace/:projectId" element={<ProjectWorkspacePage />} />
+              <Route path="/payments" element={<PaymentsPage />} />  
               <Route path="/profile" element={<FreelancerProfilePage />} />
               <Route path="/profile/edit" element={<EditProfilePage />} />
 
@@ -69,11 +72,15 @@ function App() {
             </Route>
           </Route>
 
+     <Route element={<ProtectedRoute />}>
+  <Route path="/payments/khalti/return" element={<KhaltiReturnPage />} />
+</Route>
           {/* Protected Routes - Admin Only */}
           <Route element={<ProtectedRoute roles={['admin']} />}>
             <Route path="/admin" element={<div>Admin Panel</div>} />
           </Route>
 
+     
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

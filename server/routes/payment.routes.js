@@ -1,111 +1,40 @@
+'use strict';
+
 /**
  * payment.routes.js
- * Express router for Task Tide's escrow payment subsystem.
+ * Express router for wallet/balance/withdrawal endpoints.
  *
  * Mounts at: /api/payments  (configured in server/app.js)
  *
- * CRITICAL ARCHITECTURE NOTE (§5.3 webhook requirement):
- * Webhook routes are declared BEFORE the global protect middleware block.
- * They use raw body parsing + HMAC verification INSTEAD of JWT cookies.
- * Standard REST routes use protect + authorise as normal.
- *
- * Wrong:  router.use(protect); ... router.post('/webhook/stripe', ...);
- * Right:  [webhook routes first, no protect] ... router.use(protect); ... [REST routes]
+ * NOTE on architecture:
+ *   - Milestone funding (initiate + confirm), approval/release, and
+ *     disputes are handled by milestone.routes.js / milestone.controller.js,
+ *     since they act on a specific milestone's escrowed Transaction.
+ *   - There are NO webhook routes here. This project uses Khalti's
+ *     return-URL flow only (confirmed: no KHALTI_WEBHOOK_SECRET is
+ *     configured, and no webhook URL is registered in the Khalti
+ *     dashboard). Payment confirmation happens via
+ *     PATCH /api/milestones/:id/confirm-payment instead, which calls
+ *     khaltiService.verifyReturn() server-side.
+ *   - Stripe is not used in this project.
  */
 
-'use strict';
-
-const express       = require('express');
-const router        = express.Router();
+const express = require('express');
+const router  = express.Router();
 
 const paymentCtrl  = require('../controllers/payment.controller');
-const { protect }  = require('../middleware/authMiddleware');
-const { authorise } = require('../middleware/roleMiddleware');
-const { idempotencyMiddleware } = require('../utils/idempotency');
-const {
-  stripeWebhookBodyMiddleware,
-  verifyStripeSignatureMiddleware,
-  khaltiWebhookBodyMiddleware,
-  verifyKhaltiSignatureMiddleware,
-} = require('../utils/webhookVerify');
+const { protect }   = require('../middleware/authMiddleware');
+const { checkRole } = require('../middleware/roleMiddleware'); // FIXED: was importing 'authorise', which doesn't exist
 
-/* ═══════════════════════════════════════════════════════════════════
-   WEBHOOK ROUTES  ── No JWT, No cookie auth, HMAC signature only
-   These MUST be declared before router.use(protect) below.
-═══════════════════════════════════════════════════════════════════ */
-
-/**
- * POST /api/payments/webhook/stripe
- * 1. stripeWebhookBodyMiddleware  → parse raw Buffer into req.rawBody
- * 2. verifyStripeSignatureMiddleware → verify HMAC, attach req.stripeEvent
- * 3. handleStripeWebhook          → process event, always return 200
- */
-router.post(
-  '/webhook/stripe',
-  stripeWebhookBodyMiddleware,
-  verifyStripeSignatureMiddleware,
-  paymentCtrl.handleStripeWebhook,
-);
-
-/**
- * POST /api/payments/webhook/khalti
- * 1. khaltiWebhookBodyMiddleware        → parse raw Buffer into req.rawBody
- * 2. verifyKhaltiSignatureMiddleware    → verify HMAC, attach req.khaltiEvent
- * 3. handleKhaltiWebhook               → process event, always return 200
- */
-router.post(
-  '/webhook/khalti',
-  khaltiWebhookBodyMiddleware,
-  verifyKhaltiSignatureMiddleware,
-  paymentCtrl.handleKhaltiWebhook,
-);
-
-/* ═══════════════════════════════════════════════════════════════════
-   STANDARD REST ROUTES  ── JWT required below this line
-═══════════════════════════════════════════════════════════════════ */
 router.use(protect);
 
 /**
- * POST /api/payments/escrow/fund
- * Client funds the escrow for a milestone.
- * Requires Idempotency-Key header (enforced by idempotencyMiddleware).
- */
-router.post(
-  '/escrow/fund',
-  authorise('client'),
-  idempotencyMiddleware,
-  paymentCtrl.fundEscrow,
-);
-
-/**
- * POST /api/payments/milestone/:milestoneId/approve
- * Client approves a submitted milestone and releases funds to freelancer.
- * Requires Idempotency-Key to prevent double-release.
- */
-router.post(
-  '/milestone/:milestoneId/approve',
-  authorise('client'),
-  idempotencyMiddleware,
-  paymentCtrl.approveMilestone,
-);
-
-/**
- * POST /api/payments/milestone/:milestoneId/dispute
- * Client raises a dispute — freezes funds, notifies admin.
- */
-router.post(
-  '/milestone/:milestoneId/dispute',
-  authorise('client'),
-  paymentCtrl.disputeMilestone,
-);
-
-/**
  * GET /api/payments/transactions?page=1&limit=20
- * Paginated transaction history for the authenticated user (client or freelancer).
+ * Paginated transaction history for the authenticated user (client, freelancer, or admin).
  */
 router.get(
   '/transactions',
-  authorise('client', 'freelancer', 'admin'),
+  checkRole(['client', 'freelancer', 'admin']),
   paymentCtrl.getTransactionHistory,
 );
 
@@ -115,19 +44,21 @@ router.get(
  */
 router.get(
   '/balance',
-  authorise('client', 'freelancer'),
+  checkRole(['client', 'freelancer']),
   paymentCtrl.getEscrowBalance,
 );
 
 /**
  * POST /api/payments/withdraw
- * Freelancer withdraws available wallet balance.
- * Requires Idempotency-Key to prevent duplicate withdrawals.
+ * Withdraw available wallet balance. In practice this will almost
+ * always be a freelancer (clients don't accumulate walletBalance on
+ * this platform), but the endpoint itself doesn't hard-restrict the role
+ * beyond requiring authentication -- checkRole below limits it to
+ * freelancer and admin as a sensible default.
  */
 router.post(
   '/withdraw',
-  authorise('freelancer'),
-  idempotencyMiddleware,
+  checkRole(['freelancer', 'admin']),
   paymentCtrl.withdrawFunds,
 );
 

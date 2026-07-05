@@ -1,48 +1,36 @@
 import api from './api';
 
 /**
- * TaskTide Payment & Escrow Service
+ * TaskTide Payment Service
  * Path: client/src/services/paymentService.js
- * * Coordinates secure financial transactions, milestone escrow management, 
- * and user payout history for the marketplace platform.
+ *
+ * Wallet-level concerns only: balance, transaction history, withdrawals.
+ * Milestone funding/approval/dispute are NOT here -- they live in
+ * milestoneService.js, since they act on a specific milestone's escrow,
+ * not the user's account as a whole. Keeping the split this way matches
+ * how the backend is organised (payment.controller.js vs
+ * milestone.controller.js) and avoids two places doing the same job.
  */
 export const paymentService = {
   /**
-   * Retrieve global user transaction history
-   * @param {Object} params - Filtering params (status, type, timeframe)
+   * Paginated transaction history for the logged-in user.
+   * @param {Object} params - { page, limit }
    */
-  getTransactions: (params = {}) => 
+  getTransactionHistory: (params = {}) =>
     api.get('/payments/transactions', { params }),
 
   /**
-   * Retrieve specific milestone escrow details
-   * @param {string} milestoneId 
+   * Current wallet balance for the logged-in user.
    */
-  getEscrowStatus: (milestoneId) => 
-    api.get(`/payments/escrow/${milestoneId}`),
+  getBalance: () =>
+    api.get('/payments/balance'),
 
   /**
-   * Fund a milestone (Escrow initiation)
-   * @param {string} milestoneId 
-   * @param {number} amount 
+   * Withdraw funds from wallet balance.
+   * @param {number} amount
    */
-  fundMilestone: (milestoneId, amount) => 
-    api.post('/payments/escrow/fund', { milestoneId, amount }),
-
-  /**
-   * Release payment from escrow to freelancer
-   * @param {string} milestoneId 
-   */
-  releasePayment: (milestoneId) => 
-    api.post('/payments/escrow/release', { milestoneId }),
-
-  /**
-   * Request platform arbitration for disputed milestone payments
-   * @param {string} milestoneId 
-   * @param {string} reason 
-   */
-  disputePayment: (milestoneId, reason) => 
-    api.post('/payments/escrow/dispute', { milestoneId, reason }),
+  withdraw: (amount) =>
+    api.post('/payments/withdraw', { amount }),
 };
 
 export default paymentService;
