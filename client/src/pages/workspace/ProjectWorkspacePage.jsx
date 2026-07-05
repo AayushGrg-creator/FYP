@@ -13,8 +13,8 @@
  *  │   Contract details    │   ChatPanel (real-time)     │
  *  │   • Overview          │                             │
  *  │   • Milestones        │                             │
- *  │   • Participants      │                             │
  *  │   • Files             │                             │
+ *  │   • Participants      │                             │
  *  │                       │                             │
  *  └───────────────────────┴─────────────────────────────┘
  *
@@ -38,8 +38,29 @@ import { AuthContext }  from '../../context/AuthContext';
 import { useSocket }    from '../../hooks/useSocket';
 import ChatPanel        from '../../components/chat/ChatPanel';
 import api              from '../../services/api';
+import projectFileService from '../../services/projectFileService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+async function handleDownload(url, filename) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename || 'download';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    console.error('Download failed:', err);
+    alert('Failed to download file.');
+  }
+}
+
 function formatNPR(amount) {
   if (typeof amount !== 'number') return '—';
   return 'NPR ' + amount.toLocaleString('en-IN');
@@ -52,6 +73,13 @@ function formatDate(iso) {
       day: 'numeric', month: 'short', year: 'numeric',
     });
   } catch { return '—'; }
+}
+
+function formatBytes(bytes) {
+  if (typeof bytes !== 'number' || bytes === 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
 
 function daysLeft(iso) {
@@ -112,12 +140,10 @@ function MilestoneRow({ milestone, role, onApprove, onDispute }) {
         gap:          12,
       }}
     >
-      {/* Status icon */}
       <span style={{ color:s.color, fontFamily:'monospace', fontSize:14, flexShrink:0 }}>
         {s.icon}
       </span>
 
-      {/* Info */}
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:13, fontWeight:500, color:'#e2e8f0', marginBottom:3 }}>
           {milestone.title}
@@ -140,12 +166,10 @@ function MilestoneRow({ milestone, role, onApprove, onDispute }) {
         </div>
       </div>
 
-      {/* Amount */}
       <span style={{ fontSize:13, color:'#a3e635', fontFamily:'monospace', flexShrink:0 }}>
         {formatNPR(milestone.amount)}
       </span>
 
-      {/* Client actions on submitted milestones */}
       {role === 'client' && milestone.status === 'submitted' && (
         <div style={{ display:'flex', gap:6, flexShrink:0 }}>
           <button
@@ -180,6 +204,178 @@ function MilestoneRow({ milestone, role, onApprove, onDispute }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── File row ─────────────────────────────────────────────────────────────────
+function FileRow({ file, currentUserId, isAdmin, onDelete, deleting }) {
+  const uploaderId = file.uploadedBy?._id || file.uploadedBy;
+  const canDelete = isAdmin || uploaderId?.toString() === currentUserId?.toString();
+
+  return (
+    <div
+      style={{
+        padding:      '12px 16px',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        display:      'flex',
+        alignItems:   'center',
+        gap:          12,
+      }}
+    >
+      <span style={{ fontSize:16, flexShrink:0 }}>📄</span>
+
+      <div style={{ flex:1, minWidth:0 }}>
+        <a
+          href={file.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 13, fontWeight: 500, color: '#e2e8f0',
+            textDecoration: 'none', display: 'block',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}
+        >
+          {file.originalName}
+        </a>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginTop: 2 }}>
+          <span style={{ fontSize:11, color:'#64748b', fontFamily:'monospace' }}>
+            {formatBytes(file.size)}
+          </span>
+          <span style={{ fontSize:11, color:'#64748b', fontFamily:'monospace' }}>
+            {file.uploadedBy?.name || 'Unknown'} · {formatDate(file.uploadedAt)}
+          </span>
+        </div>
+      </div>
+
+      
+  <button
+        onClick={() => handleDownload(file.url, file.originalName)}
+        style={{
+          fontSize: 11, color: '#60a5fa', fontFamily: 'monospace',
+          textDecoration: 'none', flexShrink: 0,
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+        }}
+      >
+        Download
+      </button>
+
+
+  
+      {canDelete && (
+        <button
+          onClick={() => onDelete(file._id)}
+          disabled={deleting}
+          style={{
+            background: 'none', border: 'none', color: '#f87171',
+            cursor: deleting ? 'not-allowed' : 'pointer', fontSize: 13,
+            fontFamily: 'monospace', flexShrink: 0, opacity: deleting ? 0.5 : 1,
+          }}
+          title="Delete file"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Files panel ──────────────────────────────────────────────────────────────
+function FilesPanel({ projectId, files, onFilesChanged }) {
+  const { user } = useContext(AuthContext);
+   console.log('current user:', user);
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [error, setError] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      await projectFileService.upload(projectId, file);
+      await onFilesChanged();
+    } catch (err) {
+      setError(err.message || 'Upload failed.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDelete = async (fileId) => {
+    if (!window.confirm('Delete this file? This cannot be undone.')) return;
+    setDeletingId(fileId);
+    try {
+      await projectFileService.delete(projectId, fileId);
+      await onFilesChanged();
+    } catch (err) {
+      setError(err.message || 'Delete failed.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div>
+      {error && (
+        <div style={{ fontSize: 12, color: '#f87171', fontFamily: 'monospace', marginBottom: 10 }}>
+          {error}
+        </div>
+      )}
+
+      {files?.length > 0 ? (
+        <div
+          style={{
+            border:      '1px solid rgba(255,255,255,0.07)',
+            borderRadius:10,
+            overflow:    'hidden',
+            marginBottom: 12,
+          }}
+        >
+          {files.map((f) => (
+            <FileRow
+              key={f._id}
+              file={f}
+              currentUserId={user?.userId}
+              isAdmin={user?.role === 'admin'}
+              onDelete={handleDelete}
+              deleting={deletingId === f._id}
+            />
+          ))}
+        </div>
+      ) : (
+        <p style={{ fontSize:13, color:'#334155', fontFamily:'monospace', marginBottom: 12 }}>
+          No files uploaded yet.
+        </p>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        onChange={handleFileSelect}
+        disabled={uploading}
+        style={{ display: 'none' }}
+        id="project-file-input"
+      />
+      <label
+        htmlFor="project-file-input"
+        style={{
+          display: 'inline-block',
+          background:   uploading ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.04)',
+          border:       '1px dashed rgba(255,255,255,0.15)',
+          borderRadius: 8,
+          color:        uploading ? '#334155' : '#94a3b8',
+          fontSize:     12,
+          padding:      '8px 16px',
+          cursor:       uploading ? 'not-allowed' : 'pointer',
+          fontFamily:   'monospace',
+        }}
+      >
+        {uploading ? 'Uploading…' : '+ Upload File'}
+      </label>
     </div>
   );
 }
@@ -281,7 +477,7 @@ function Section({ title, icon, children }) {
 }
 
 // ─── LEFT PANEL ───────────────────────────────────────────────────────────────
-function ContractPanel({ project, onApproveMilestone, onDisputeMilestone }) {
+function ContractPanel({ project, projectId, onApproveMilestone, onDisputeMilestone, onFilesChanged }) {
   const { user } = useContext(AuthContext);
   if (!project) return null;
 
@@ -335,7 +531,6 @@ function ContractPanel({ project, onApproveMilestone, onDisputeMilestone }) {
           ))}
         </div>
 
-        {/* Progress bar */}
         <div style={{ marginBottom:4 }}>
           <div
             style={{
@@ -397,6 +592,15 @@ function ContractPanel({ project, onApproveMilestone, onDisputeMilestone }) {
             No milestones defined yet.
           </p>
         )}
+      </Section>
+
+      {/* ── Files ── */}
+      <Section title="Files" icon="📁">
+        <FilesPanel
+          projectId={projectId}
+          files={project.files}
+          onFilesChanged={onFilesChanged}
+        />
       </Section>
 
       {/* ── Participants ── */}
@@ -564,7 +768,6 @@ export default function ProjectWorkspacePage() {
           flexShrink:     0,
         }}
       >
-        {/* Back */}
         <button
           className="back-btn"
           onClick={() => navigate('/dashboard')}
@@ -585,7 +788,6 @@ export default function ProjectWorkspacePage() {
 
         <div style={{ width:'1px', height:20, background:'rgba(255,255,255,0.07)' }} />
 
-        {/* Project name */}
         <div style={{ flex:1, minWidth:0 }}>
           <h1
             style={{
@@ -605,10 +807,8 @@ export default function ProjectWorkspacePage() {
           </div>
         </div>
 
-        {/* Status pill */}
         {project?.escrowStatus && <StatusPill status={project.escrowStatus} />}
 
-        {/* Mobile tab switcher */}
         {isMobile && (
           <div
             style={{
@@ -652,7 +852,6 @@ export default function ProjectWorkspacePage() {
           gap:      0,
         }}
       >
-        {/* LEFT — contract details */}
         {(!isMobile || activeTab === 'contract') && (
           <div
             style={{
@@ -667,13 +866,14 @@ export default function ProjectWorkspacePage() {
           >
             <ContractPanel
               project={project}
+              projectId={projectId}
               onApproveMilestone={handleApproveMilestone}
               onDisputeMilestone={handleDisputeMilestone}
+              onFilesChanged={fetchProject}
             />
           </div>
         )}
 
-        {/* RIGHT — chat */}
         {(!isMobile || activeTab === 'chat') && (
           <div
             style={{

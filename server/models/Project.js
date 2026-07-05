@@ -10,6 +10,19 @@ const { Schema } = mongoose;
 // escrow status, progress state, and the shared
 // conversation (message room).
 // ─────────────────────────────────────────────
+const ProjectFileSchema = new Schema(
+  {
+    url:          { type: String, required: true },
+    publicId:     { type: String, required: true }, // Cloudinary public_id, needed to delete
+    originalName: { type: String, required: true, trim: true },
+    fileType:     { type: String, trim: true },      // MIME type
+    size:         { type: Number },                  // bytes
+    uploadedBy:   { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    uploadedAt:   { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
 const ProjectSchema = new Schema(
   {
     // ── Core Relationships ─────────────────────
@@ -103,6 +116,13 @@ const ProjectSchema = new Schema(
       type: String,
       unique: true,
       index: true,
+    },
+
+    // ── Files ─────────────────────────────────
+    // Uploaded project deliverables/assets, stored on Cloudinary.
+    files: {
+      type: [ProjectFileSchema],
+      default: [],
     },
 
     // ── Deadline ──────────────────────────────

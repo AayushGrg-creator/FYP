@@ -51,7 +51,7 @@ export default function ChatPanel({ projectId, height = '100%' }) {
       setMessages((prev) => [...prev, message]);
     });
     const offTypingStart = onEvent('typing-start', ({ userId }) => {
-      if (userId !== user?.id) setTypingUser(userId);
+      if (userId !== user?.userId) setTypingUser(userId);
     });
     const offTypingStop = onEvent('typing-stop', ({ userId }) => {
       setTypingUser((current) => (current === userId ? null : current));
@@ -64,7 +64,7 @@ export default function ChatPanel({ projectId, height = '100%' }) {
       offTypingStop?.();
       offError?.();
     };
-  }, [onEvent, user?.id]);
+  }, [onEvent, user?.userId]);
 
   // ── Auto-scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -75,10 +75,10 @@ export default function ChatPanel({ projectId, height = '100%' }) {
   useEffect(() => {
     if (!messages.length) return;
     const last = messages[messages.length - 1];
-    if (last.sender?._id !== user?.id) {
+    if (last.sender?._id !== user?.userId) {
       markRead(projectId, last._id);
     }
-  }, [messages, projectId, user?.id, markRead]);
+  }, [messages, projectId, user?.userId, markRead]);
 
   const handleSend = useCallback((e) => {
     e.preventDefault();
@@ -106,7 +106,7 @@ export default function ChatPanel({ projectId, height = '100%' }) {
         {error && <div style={{ color: '#f87171', fontSize: 13, fontFamily: 'monospace' }}>{error}</div>}
 
         {!loading && !error && messages.map((msg) => {
-          const isOwn = msg.sender?._id === user?.id;
+          const isOwn = msg.sender?._id === user?.userId;
           return (
             <div key={msg._id} style={{
               marginBottom: 10, display: 'flex', flexDirection: 'column',
