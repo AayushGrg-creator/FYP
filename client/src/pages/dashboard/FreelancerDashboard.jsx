@@ -8,6 +8,10 @@ import matchService from '../../services/matchService';
 import proposalService from '../../services/proposalService';
 import jobService from '../../services/jobService';
 import projectService from '../../services/projectService';
+import useGamification from '../../hooks/useGamification';
+import ProgressBar from '../../components/gamification/ProgressBar';
+import LevelBadge from '../../components/gamification/LevelBadge';
+import BadgeGrid from '../../components/gamification/BadgeGrid';
 
 /* ══════════════════════════════════════════════════════════════════════
    FreelancerDashboard.jsx
@@ -126,15 +130,12 @@ function useRealMatches() {
 
 /* ─── Placeholder stats — EXPLICITLY NOT real data ──────────────────── */
 const MOCK_STATS = {
-  points: 0,
-  level: 1,
   completedProjects: 0,
   activeProjects: 0,
   earnings: 0,
   responseRate: 0,
   completionRate: 0,
   avgRating: 0,
-  badges: [],
 };
 
 /* ─── Atoms ──────────────────────────────────────────────────────────── */
@@ -419,6 +420,13 @@ export default function FreelancerDashboard() {
   const profile = useRealProfile();
   const { proposals, loading: proposalsLoading, error: proposalsError, reload: reloadProposals } = useMyProposals();
   const { matches, loading: matchesLoading } = useRealMatches();
+  const {
+    progress: gamificationProgress,
+    myBadges,
+    allBadges,
+    loading: gamificationLoading,
+    error: gamificationError,
+  } = useGamification();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [completingId, setCompletingId] = useState(null);
@@ -431,6 +439,7 @@ export default function FreelancerDashboard() {
   }, []);
 
   const tabs = ['overview', 'proposals', 'matches', 'badges'];
+  const earnedBadgeCount = myBadges?.length || 0;
 
   // Accepted proposals whose job is actively being worked on or finished.
   const activeJobs = proposals.filter(
@@ -500,6 +509,14 @@ export default function FreelancerDashboard() {
                   {proposals.filter(p => p.status === 'accepted').length}
                 </span>
               )}
+              {t === 'badges' && earnedBadgeCount > 0 && (
+                <span style={{
+                  marginLeft: 6, background: activeTab === t ? '#fff' : T.warning,
+                  color: activeTab === t ? T.brand : '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 9,
+                }}>
+                  {earnedBadgeCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -550,6 +567,31 @@ export default function FreelancerDashboard() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+                {/* ── Level & Points (real, from gamification system) ── */}
+                <Card>
+                  <SectionLabel>Level &amp; Points</SectionLabel>
+                  {gamificationLoading ? (
+                    <div style={{ fontSize: 12, color: T.textMuted }}>Loading progress…</div>
+                  ) : gamificationError ? (
+                    <div style={{ fontSize: 12, color: T.danger }}>{gamificationError}</div>
+                  ) : gamificationProgress ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                      <LevelBadge level={gamificationProgress.level} size={48} />
+                      <div style={{ flex: 1 }}>
+                        <ProgressBar
+                          level={gamificationProgress.level}
+                          points={gamificationProgress.points}
+                          pointsIntoLevel={gamificationProgress.pointsIntoLevel}
+                          pointsForNextLevel={gamificationProgress.pointsForNextLevel}
+                          percent={gamificationProgress.percent}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: T.textMuted }}>No progress data yet.</div>
+                  )}
+                </Card>
 
                 <div>
                   <SectionLabel tag="Coming soon">Performance Overview</SectionLabel>
@@ -689,9 +731,38 @@ export default function FreelancerDashboard() {
                   )}
                 </Card>
 
+                {/* ── Earned Badges (real, from gamification system) ── */}
                 <Card>
-                  <SectionLabel tag="Coming soon">Earned Badges</SectionLabel>
-                  <div style={{ fontSize: 12, color: T.textMuted }}>Gamification system not live yet — badges will appear here as you complete jobs.</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <SectionLabel>Earned Badges</SectionLabel>
+                    {earnedBadgeCount > 0 && (
+                      <button
+                        onClick={() => setActiveTab('badges')}
+                        style={{ background: 'none', border: 'none', color: T.brand, fontSize: 11, cursor: 'pointer', padding: 0, marginBottom: 14 }}
+                      >
+                        View all →
+                      </button>
+                    )}
+                  </div>
+                  {gamificationLoading ? (
+                    <div style={{ fontSize: 12, color: T.textMuted }}>Loading badges…</div>
+                  ) : gamificationError ? (
+                    <div style={{ fontSize: 12, color: T.danger }}>{gamificationError}</div>
+                  ) : earnedBadgeCount === 0 ? (
+                    <div style={{ fontSize: 12, color: T.textMuted }}>No badges earned yet — complete milestones and projects to start unlocking achievements.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {myBadges.slice(0, 6).map((ub) => (
+                        <span
+                          key={ub._id}
+                          title={ub.badge?.name}
+                          style={{ fontSize: 26, lineHeight: 1 }}
+                        >
+                          {ub.badge?.icon || '🏅'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </Card>
               </div>
             </div>
@@ -778,14 +849,53 @@ export default function FreelancerDashboard() {
         {activeTab === 'badges' && (
           <>
             <div style={{ marginBottom: 28 }}>
-              <SectionLabel tag="Coming soon">Achievement System</SectionLabel>
+              <SectionLabel>Achievement System</SectionLabel>
               <h2 style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: 40, margin: 0, color: T.textPrimary }}>
                 Your <span style={{ color: T.brand }}>Badges</span>
               </h2>
             </div>
-            <Card>
-              <EmptyState icon="🏆" title="Gamification System is under development" subtitle="Complete jobs and build your reputation to unlock achievements once this feature ships." />
+
+            <Card style={{ marginBottom: 24 }}>
+              <SectionLabel>Level &amp; Points</SectionLabel>
+              {gamificationLoading ? (
+                <div style={{ fontSize: 12, color: T.textMuted }}>Loading progress…</div>
+              ) : gamificationError ? (
+                <div style={{ fontSize: 12, color: T.danger }}>{gamificationError}</div>
+              ) : gamificationProgress ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <LevelBadge level={gamificationProgress.level} size={56} />
+                  <div style={{ flex: 1 }}>
+                    <ProgressBar
+                      level={gamificationProgress.level}
+                      points={gamificationProgress.points}
+                      pointsIntoLevel={gamificationProgress.pointsIntoLevel}
+                      pointsForNextLevel={gamificationProgress.pointsForNextLevel}
+                      percent={gamificationProgress.percent}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: T.textMuted }}>No progress data yet.</div>
+              )}
             </Card>
+
+            {gamificationLoading ? (
+              <Card>
+                <div style={{ textAlign: 'center', padding: '24px', color: T.textMuted, fontSize: 13 }}>Loading your badges…</div>
+              </Card>
+            ) : gamificationError ? (
+              <Card>
+                <div style={{ textAlign: 'center', padding: '24px', color: T.danger, fontSize: 13 }}>{gamificationError}</div>
+              </Card>
+            ) : allBadges.length === 0 ? (
+              <Card>
+                <EmptyState icon="🏆" title="Badge catalogue not loaded" subtitle="If this persists, the badge catalogue may not be seeded yet — contact support." />
+              </Card>
+            ) : (
+              <Card>
+                <BadgeGrid allBadges={allBadges} earnedBadges={myBadges} />
+              </Card>
+            )}
           </>
         )}
       </div>

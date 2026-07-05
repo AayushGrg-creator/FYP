@@ -1,57 +1,60 @@
+'use strict';
+
 /**
- * TaskTide Reputation Controller
- * Path: server/src/controllers/reputation.controller.js
- * * Computes user trust scores based on multi-factor behavioral data.
+ * reputation.service.js
+ * Bridges raw platform data (reviews, badges, projects) into Trustcalculator's
+ * pure scoring function, and persists the result to User.trustScore.
+ *
+ * UPDATED: completedProjects/totalAcceptedProjects now pull real counts from
+ * Project.js (confirmed schema: a Project only exists after a proposal is
+ * accepted, so every Project doc IS an accepted project — no separate flag
+ * needed).
+ *
+ * STILL NULL: avgResponseHours (no message-timestamp tracking exists yet),
+ * yearsSinceLastDispute (no dispute-date field surfaced in Project.js —
+ * only a `dispute` ref, not a resolved/closed date). These two still
+ * contribute worst-case values to the trust formula. Fix later by wiring
+ * Message timestamps and Dispute.resolvedAt once those are reviewed.
  */
 
-const Review = require('../models/Review');
-const User = require('../models/User');
+const User      = require('../models/User');
+const Review    = require('../models/Review');
+const UserBadge = require('../models/UserBadge');
+const Project   = require('../models/Project');
+const { calculateTrustScore } = require('../utils/Trustcalculator');
 
-// @desc    Calculate score using a weighted average algorithm
-exports.calculateTrustScore = async (req, res) => {
-  try {
-    const { userId } = req.params;
+async function recalculateTrustScore(userId) {
+  const user = await User.findById(userId);
+  if (!user) throw new Error(`recalculateTrustScore: user ${userId} not found`);
 
-    // 1. Fetch performance metrics from the database
-    const stats = await Review.aggregate([
-      { $match: { revieweeId: mongoose.Types.ObjectId(userId) } },
-      { 
-        $group: { 
-          _id: '$revieweeId',
-          avgRating: { $avg: '$rating' },
-          totalReviews: { $sum: 1 }
-        }
-      }
-    ]);
+  const reviewStats = await Review.aggregate([
+    { $match: { revieweeId: user._id } },
+    { $group: { _id: '$revieweeId', avgRating: { $avg: '$rating' }, totalReviews: { $sum: 1 } } },
+  ]);
+  const averageRating = reviewStats.length ? reviewStats[0].avgRating : 0;
 
-    if (stats.length === 0) return res.status(200).json({ score: 0 });
+  const badgeCount = await UserBadge.countDocuments({ user: userId });
 
-    // 2. Algorithm: Weighted score (Rating * 0.7 + Experience Factor * 0.3)
-    const { avgRating, totalReviews } = stats[0];
-    const experienceFactor = Math.min(totalReviews / 50, 1); // Caps out at 50 reviews
-    const finalScore = Math.round((avgRating * 0.7 + (experienceFactor * 5) * 0.3) * 20);
+  // Every Project document represents an accepted proposal (per schema comment),
+  // so total Project count for this freelancer = totalAcceptedProjects.
+  const totalAcceptedProjects = await Project.countDocuments({ freelancer: userId });
+  const completedProjects = await Project.countDocuments({
+    freelancer: userId,
+    status: 'completed',
+  });
 
-    res.status(200).json({ success: true, score: finalScore });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Calculation error' });
-  }
-};
+  const { score } = calculateTrustScore({
+    completedProjects,
+    totalAcceptedProjects,
+    averageRating,
+    avgResponseHours: null,
+    yearsSinceLastDispute: null,
+    badgeCount,
+  });
 
-// @desc    Administrative update for reputation points
-exports.updateReputation = async (req, res) => {
-  try {
-    const { points, reason } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.userId,
-      { $inc: { reputationPoints: points } },
-      { new: true }
-    );
+  user.trustScore = score;
+  await user.save();
+  return score;
+}
 
-    // Create an audit log of the reputation change
-    console.log(`Audit: User ${user._id} points updated by ${points}. Reason: ${reason}`);
-
-    res.status(200).json({ success: true, data: user });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Update failed' });
-  }
-};
+module.exports = { recalculateTrustScore };

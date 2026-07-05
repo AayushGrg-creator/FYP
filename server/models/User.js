@@ -1,44 +1,14 @@
 'use strict';
 
-/**
- * User.js
- * TaskTide – Core user schema
- *
- * This schema covers both local (password) and Google OAuth users.
- * Fields that are Google-only (googleId, avatarUrl, authProvider) are
- * optional so local users can be added in future without breaking changes.
- *
- * Security defaults
- * ─────────────────
- *  - password      → select: false  (never returned in queries)
- *  - googleId      → select: false  (internal OAuth identifier)
- *  - reset tokens  → select: false
- *  - toJSON / toObject transforms strip all sensitive fields as a second layer
- *
- * Indexes
- * ───────
- *  - email      → unique (auto-indexed by unique: true — no manual index needed)
- *  - googleId   → sparse unique (null for local users, unique for OAuth users)
- *  - accountStatus → for admin queries filtering active/suspended users
- *
- * Password hashing
- * ─────────────────
- *  Hashing happens ONCE, here, via the pre('save') hook below.
- *  auth.service.js must pass the PLAINTEXT password to User.create()/save() —
- *  never pre-hash it there, or passwords get double-hashed and login breaks.
- */
-
 const mongoose = require('mongoose');
-const bcrypt   = require('bcryptjs'); // ✅ FIXED: was 'bcrypt' (native module, not installed)
-                                       //    bcryptjs is pure-JS, same API, already used elsewhere
+const bcrypt   = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
   {
-    // ── Identity ──────────────────────────────────────────────────────────────
     email: {
       type      : String,
       required  : [true, 'Email is required'],
-      unique    : true,           // auto-creates index — no manual index needed
+      unique    : true,
       lowercase : true,
       trim      : true,
       match     : [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
@@ -50,7 +20,6 @@ const userSchema = new mongoose.Schema(
       trim     : true,
     },
 
-    // ── Role ──────────────────────────────────────────────────────────────────
     role: {
       type     : String,
       enum     : {
@@ -60,18 +29,15 @@ const userSchema = new mongoose.Schema(
       required : [true, 'Role is required'],
     },
 
-    // ── Local auth ────────────────────────────────────────────────────────────
-    // Optional — Google OAuth users have no local password (stored as null)
     password: {
       type      : String,
       minlength : [8, 'Password must be at least 8 characters'],
-      select    : false,   // never returned in queries by default
+      select    : false,
     },
 
-    // ── Google OAuth ──────────────────────────────────────────────────────────
     googleId: {
       type   : String,
-      select : false,      // never expose internal OAuth identifier in responses
+      select : false,
     },
 
     avatarUrl: {
@@ -88,7 +54,6 @@ const userSchema = new mongoose.Schema(
       default : 'local',
     },
 
-    // ── Trust & verification ──────────────────────────────────────────────────
     trustScore: {
       type    : Number,
       default : 0,
@@ -101,7 +66,6 @@ const userSchema = new mongoose.Schema(
       default : false,
     },
 
-    // ── Account status ────────────────────────────────────────────────────────
     accountStatus: {
       type    : String,
       enum    : {
@@ -111,24 +75,34 @@ const userSchema = new mongoose.Schema(
       default : 'active',
     },
 
-     // ── Wallet / earnings ─────────────────────────────────────────────────────
     walletBalance: {
       type    : Number,
       default : 0,
       min     : [0, 'Wallet balance cannot be negative'],
     },
-    
-    // ── Password reset ────────────────────────────────────────────────────────
+
+    // ── Gamification ───────────────────────────────────────────────────────────
+    points: {
+      type    : Number,
+      default : 0,
+      min     : [0, 'Points cannot be negative'],
+    },
+
+    level: {
+      type    : Number,
+      default : 1,
+      min     : [1, 'Level cannot be below 1'],
+    },
+
     passwordResetToken   : { type: String, select: false },
     passwordResetExpires : { type: Date,   select: false },
 
-    // ── Activity ──────────────────────────────────────────────────────────────
     lastLogin: {
       type : Date,
     },
   },
   {
-    timestamps : true,   // createdAt, updatedAt
+    timestamps : true,
 
     toJSON: {
       transform(_doc, ret) {
@@ -154,15 +128,10 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// ─── Indexes ──────────────────────────────────────────────────────────────────
-
 userSchema.index({ googleId : 1 }, { unique: true, sparse: true });
 userSchema.index({ accountStatus : 1 });
 
-// ─── Pre-save hook: hash password (SINGLE SOURCE OF TRUTH for hashing) ────────
-
 userSchema.pre('save', async function hashPassword(next) {
-  // Skip if no password field (Google OAuth) or password not modified
   if (!this.password || !this.isModified('password')) {
     return next();
   }
@@ -176,8 +145,6 @@ userSchema.pre('save', async function hashPassword(next) {
   }
 });
 
-// ─── Instance methods ─────────────────────────────────────────────────────────
-
 userSchema.methods.comparePassword = async function comparePassword(candidate) {
   if (!this.password) {
     throw new Error('This account does not use password authentication.');
@@ -189,7 +156,22 @@ userSchema.methods.isActive = function isActive() {
   return this.accountStatus === 'active';
 };
 
-// ─── Model ────────────────────────────────────────────────────────────────────
+userSchema.methods.getLevelProgress = function getLevelProgress() {
+  const { LEVEL_THRESHOLDS } = require('../config/constants');
+  const currentLevel = this.level;
+  const currentFloor = LEVEL_THRESHOLDS[currentLevel - 1] ?? 0;
+  const nextCeiling  = LEVEL_THRESHOLDS[currentLevel] ?? null;
+
+  if (nextCeiling === null) {
+    return { pointsIntoLevel: this.points - currentFloor, pointsForNextLevel: null, percent: 100 };
+  }
+
+  const pointsIntoLevel    = this.points - currentFloor;
+  const pointsForNextLevel = nextCeiling - currentFloor;
+  const percent            = Math.round((pointsIntoLevel / pointsForNextLevel) * 100);
+
+  return { pointsIntoLevel, pointsForNextLevel, percent };
+};
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;

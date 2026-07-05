@@ -1,46 +1,18 @@
 'use strict';
 
-/**
- * milestone.controller.js
- *
- * Routes consumed by milestone.routes.js:
- *   POST   /api/milestones                       - create a milestone (client only)
- *   GET    /api/milestones/project/:projectId    - list milestones for a project (participant only)
- *   PATCH  /api/milestones/:id/fund              - client initiates a real Khalti payment
- *   PATCH  /api/milestones/:id/confirm-payment   - client confirms payment after Khalti redirect
- *   PATCH  /api/milestones/:id/submit            - freelancer submits work (assigned freelancer only)
- *   PATCH  /api/milestones/:id/approve           - client approves + releases funds
- *   PATCH  /api/milestones/:id/dispute           - client raises a dispute (client only)
- *   PATCH  /api/milestones/:id/cancel            - client cancels a non-terminal milestone
- *   DELETE /api/milestones/:id                   - client deletes an unfunded/cancelled milestone
- *
- * FUNDING FLOW (Khalti, return-URL only -- no inbound webhook is configured):
- *   1. fundMilestone            -- client clicks "Fund". We call Khalti's
- *      initiatePayment(), create a Transaction with status 'pending', and
- *      return a paymentUrl. The milestone stays in status 'created' --
- *      it is NOT marked funded yet.
- *   2. Khalti redirects the browser back to our return_url with ?pidx=...
- *   3. confirmMilestoneFunding  -- the frontend reads pidx from the URL and
- *      calls this endpoint. We do a server-side lookup via
- *      khaltiService.verifyReturn() to confirm the payment actually
- *      succeeded before trusting it. Only then does the Transaction move
- *      to 'escrowed' and the milestone move to 'funded'.
- */
-
 const Project      = require('../models/Project');
 const { Milestone } = require('../models/Milestone');
 const Transaction   = require('../models/Transaction');
 const User          = require('../models/User');
 const khaltiService  = require('../services/khalti.service');
+const gamificationService = require('../services/gamification.service');
+const reputationService   = require('../services/reputation.service');
+const { POINT_VALUES }    = require('../config/constants');
 const { emitToProjectRoom } = require('../socket');
 
 const ok   = (res, data, status = 200) => res.status(status).json({ success: true,  ...data });
 const fail = (res, msg,  status = 400) => res.status(status).json({ success: false, message: msg });
 
-/* ══════════════════════════════════════════════════════════════════
-   POST /api/milestones
-   Client only -- must own the project referenced in the body.
-══════════════════════════════════════════════════════════════════ */
 exports.createMilestone = async (req, res) => {
   try {
     const { project: projectId, name, description, amount, currency, order, dueDate } = req.body;
@@ -57,7 +29,6 @@ exports.createMilestone = async (req, res) => {
       return fail(res, 'Amount must be a positive number.', 400);
     }
 
-    // Prevent milestones from ever summing past the project's agreed total.
     const existingMilestones = await Milestone.find({ project: projectId }).select('amount');
     const existingTotal = existingMilestones.reduce((sum, m) => sum + m.amount, 0);
     const newTotal = existingTotal + numericAmount;
@@ -94,10 +65,6 @@ exports.createMilestone = async (req, res) => {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   GET /api/milestones/project/:projectId
-   Any project participant (client, freelancer, or admin).
-══════════════════════════════════════════════════════════════════ */
 exports.getMilestonesForProject = async (req, res) => {
   try {
     const project = await Project.findById(req.params.projectId).select('client freelancer');
@@ -120,13 +87,6 @@ exports.getMilestonesForProject = async (req, res) => {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   PATCH /api/milestones/:id/fund
-   Client only (must be the milestone's own client).
-   Initiates a real Khalti payment. Does NOT mark the milestone as
-   funded -- that only happens once confirmMilestoneFunding verifies
-   the payment actually succeeded.
-══════════════════════════════════════════════════════════════════ */
 exports.fundMilestone = async (req, res) => {
   try {
     const milestone = await Milestone.findById(req.params.id);
@@ -145,9 +105,6 @@ exports.fundMilestone = async (req, res) => {
       purchaseOrderName: milestone.name,
       customerName:      req.user.name,
       customerEmail:     req.user.email,
-      // milestoneId is included here because Khalti's redirect only carries
-      // back a `pidx` -- without this, the return page would have no way
-      // to know which milestone a given payment belongs to.
       returnUrl:         `${process.env.PLATFORM_URL}/payments/khalti/return?milestoneId=${milestone._id}`,
     });
 
@@ -156,7 +113,7 @@ exports.fundMilestone = async (req, res) => {
       milestone:            milestone._id,
       payer:                milestone.client,
       receiver:             milestone.freelancer,
-      amount:               Math.round(milestone.amount * 100), // paisa
+      amount:               Math.round(milestone.amount * 100),
       amountDisplay:        milestone.amount,
       currency:             milestone.currency,
       gateway:              'khalti',
@@ -178,12 +135,6 @@ exports.fundMilestone = async (req, res) => {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   PATCH /api/milestones/:id/confirm-payment
-   Client only. Called by the frontend after Khalti redirects back
-   with ?pidx=... -- verifies the payment server-side before trusting it.
-   Body: { pidx }
-══════════════════════════════════════════════════════════════════ */
 exports.confirmMilestoneFunding = async (req, res) => {
   try {
     const { pidx } = req.body;
@@ -202,7 +153,6 @@ exports.confirmMilestoneFunding = async (req, res) => {
     });
     if (!transaction) return fail(res, 'No matching transaction found for this payment.', 404);
 
-    // Already processed -- return current state instead of re-processing
     if (transaction.status !== 'pending') {
       return ok(res, { message: `Payment already ${transaction.status}.`, milestone, transaction });
     }
@@ -238,11 +188,6 @@ exports.confirmMilestoneFunding = async (req, res) => {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   PATCH /api/milestones/:id/submit
-   Freelancer only (must be the milestone's assigned freelancer).
-   Body: { deliverableUrl, notes }
-══════════════════════════════════════════════════════════════════ */
 exports.submitMilestone = async (req, res) => {
   try {
     const { deliverableUrl, notes } = req.body;
@@ -264,13 +209,6 @@ exports.submitMilestone = async (req, res) => {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   PATCH /api/milestones/:id/approve
-   Client only. Releases the escrowed transaction to the freelancer's
-   wallet and moves the milestone to 'released'. Triggers
-   Project.recalculateProgress automatically via Milestone's
-   post-save hook.
-══════════════════════════════════════════════════════════════════ */
 exports.approveMilestone = async (req, res) => {
   try {
     const milestone = await Milestone.findById(req.params.id);
@@ -285,7 +223,6 @@ exports.approveMilestone = async (req, res) => {
       return fail(res, 'No escrowed transaction found for this milestone. It may not be funded yet.', 400);
     }
 
-    // milestone.release() enforces the 'pending_approval' -> 'released' transition
     milestone.release();
     await milestone.save();
 
@@ -293,7 +230,19 @@ exports.approveMilestone = async (req, res) => {
     await transaction.save();
 
     await User.findByIdAndUpdate(milestone.freelancer, { $inc: { walletBalance: transaction.netAmount } });
- // ADD THIS: recalculate the project's released amount + progress
+
+    await gamificationService.awardPoints(
+      milestone.freelancer,
+      POINT_VALUES.MILESTONE_APPROVED,
+      `Milestone approved: ${milestone.name}`
+    );
+
+    await reputationService.recalculateTrustScore(milestone.freelancer);
+    await gamificationService.checkAndAwardBadgesForUser(milestone.freelancer, {
+      awardedForLabel: `Triggered by milestone approval: ${milestone.name}`,
+      relatedProject: milestone.project,
+    });
+
     const project = await Project.findById(milestone.project);
     if (project) {
       await project.recalculateProgress();
@@ -311,10 +260,6 @@ exports.approveMilestone = async (req, res) => {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   PATCH /api/milestones/:id/dispute
-   Client only. Body: { reason }
-══════════════════════════════════════════════════════════════════ */
 exports.disputeMilestone = async (req, res) => {
   try {
     const { reason } = req.body;
@@ -347,12 +292,6 @@ exports.disputeMilestone = async (req, res) => {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   PATCH /api/milestones/:id/cancel
-   Client only. Cancels a funded (or otherwise non-terminal) milestone
-   without deleting its record -- preserves history for anything that
-   had funds committed, unlike a hard delete which is create-only.
-══════════════════════════════════════════════════════════════════ */
 exports.cancelMilestone = async (req, res) => {
   try {
     const milestone = await Milestone.findById(req.params.id);
@@ -376,12 +315,6 @@ exports.cancelMilestone = async (req, res) => {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════════
-   DELETE /api/milestones/:id
-   Client only (must own it), and only while status is still 'created'
-   or 'cancelled' -- once funded, use cancel/dispute instead, not a
-   hard delete.
-══════════════════════════════════════════════════════════════════ */
 exports.deleteMilestone = async (req, res) => {
   try {
     const milestone = await Milestone.findById(req.params.id);
