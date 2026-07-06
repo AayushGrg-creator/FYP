@@ -17,6 +17,8 @@ export default function EditProfilePage() {
     location: '',
     companyName: '',
     industryType: '',
+    githubUrl: '',
+    linkedinUrl: '',
   });
 
   const [portfolio, setPortfolio] = useState([]);
@@ -41,6 +43,8 @@ export default function EditProfilePage() {
       location: profile.location || '',
       companyName: profile.companyName || '',
       industryType: profile.industryType || '',
+      githubUrl: profile.githubUrl || '',
+      linkedinUrl: profile.linkedinUrl || '',
     });
     setAvatarPreview(profile.avatarUrl || '');
 
@@ -112,15 +116,17 @@ export default function EditProfilePage() {
           industryType: formData.industryType,
           location: formData.location,
         }
-      : {
-          bio: formData.bio,
-          hourlyRate: formData.hourlyRate === '' ? undefined : Number(formData.hourlyRate),
-          skills: formData.skills
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean),
-          location: formData.location,
-          portfolio: portfolio
+     : {
+    bio: formData.bio,
+    hourlyRate: formData.hourlyRate === '' ? undefined : Number(formData.hourlyRate),
+    skills: formData.skills
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    location: formData.location,
+    githubUrl: formData.githubUrl,
+    linkedinUrl: formData.linkedinUrl,
+    portfolio: portfolio
             .filter((p) => p.title.trim() !== '') // drop blank rows
             .map((p) => ({
               title: p.title.trim(),
@@ -218,6 +224,20 @@ export default function EditProfilePage() {
               onChange={handleChange}
               placeholder="React, Node.js, MongoDB"
             />
+            <Field
+  label="GitHub URL"
+  name="githubUrl"
+  value={formData.githubUrl}
+  onChange={handleChange}
+  placeholder="https://github.com/you"
+/>
+<Field
+  label="LinkedIn URL"
+  name="linkedinUrl"
+  value={formData.linkedinUrl}
+  onChange={handleChange}
+  placeholder="https://linkedin.com/in/you"
+/>
           </>
         )}
 

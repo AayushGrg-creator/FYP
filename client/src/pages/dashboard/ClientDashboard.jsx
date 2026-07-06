@@ -454,7 +454,14 @@ function ProposalCard({ proposal, onAccept, onReject, acceptLoading, rejectLoadi
             }
           </div>
           <div>
-            <div style={styles.propName}>{fl.name}</div>
+            <div style={styles.propName}>
+              {fl.name}
+              {fl._id && (
+                <Link to={`/profile/${fl._id}`} style={styles.viewProfileLink}>
+                  View Profile →
+                </Link>
+              )}
+            </div>
             <div style={styles.propMeta}>
               {fl.trustScore !== undefined && (
                 <span style={styles.trustScore}>⭐ {fl.trustScore}/100</span>
@@ -730,7 +737,11 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden', flexShrink: 0,
   },
-  propName: { color: T.textPrimary, fontWeight: 700, fontSize: 15 },
+  propName: { color: T.textPrimary, fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 10 },
+  viewProfileLink: {
+    color: T.brand, fontWeight: 600, fontSize: 12, textDecoration: 'none',
+    fontFamily: "'DM Mono', monospace",
+  },
   propMeta: { display: 'flex', gap: 8, marginTop: 3 },
   trustScore: { color: T.warning, fontSize: 12, fontWeight: 600 },
   proposalRight: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 },

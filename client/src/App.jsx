@@ -4,6 +4,7 @@ import { SocketProvider } from './context/SocketContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import EditProfilePage from './pages/profile/EditProfilePage';
 import ProjectWorkspacePage from './pages/workspace/ProjectWorkspacePage';
+import PublicProfilePage from './pages/profile/PublicProfilePage';
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
 
@@ -63,6 +64,7 @@ function App() {
               <Route path="/payments" element={<PaymentsPage />} />  
               <Route path="/profile" element={<FreelancerProfilePage />} />
               <Route path="/profile/edit" element={<EditProfilePage />} />
+              <Route path="/profile/:userId" element={<PublicProfilePage />} />
 
               {/* Job Routes */}
               <Route path="/jobs" element={<JobBoardPage />} />

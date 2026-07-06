@@ -163,7 +163,7 @@ export default function FreelancerProfilePage() {
       updated[index] = { ...updated[index], [field]: value };
       return { ...p, portfolio: updated };
     });
-  };
+  };F
 
   const removePortfolioItem = (index) => {
     setProfile(p => ({ ...p, portfolio: p.portfolio.filter((_, i) => i !== index) }));

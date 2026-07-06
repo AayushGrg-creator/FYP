@@ -1,22 +1,16 @@
-/* ──────────────────────────────────────────────────────────────────────────── */
-/* reputation.routes.js - Trust and Performance Metrics Interface              */
-/* ──────────────────────────────────────────────────────────────────────────── */
+'use strict';
 
 const express = require('express');
 const router = express.Router();
-const reputationController = require('../controllers/reputation.controller');
 const { protect } = require('../middleware/authMiddleware');
-const { isAdmin } = require('../middleware/roleMiddleware');
+const reputationController = require('../controllers/reputation.controller');
 
-/* 1. Public Endpoints: Available to all authenticated users */
-router.route('/:userId')
-  .get(reputationController.getReputation);
+// GET /api/reputation           -> your own trust score
+// GET /api/reputation/:userId   -> another user's trust score (for public profile view)
+router.get('/', protect, reputationController.getTrustScore);
+router.get('/:userId', protect, reputationController.getTrustScore);
 
-router.route('/:userId/trust-score')
-  .get(reputationController.getTrustScore);
-
-/* 2. Administrative Endpoints: Requires Admin authorization */
-router.route('/:userId/update')
-  .post(protect, isAdmin, reputationController.updateReputation);
+// POST /api/reputation/recalculate -> force-recalculate your own score
+router.post('/recalculate', protect, reputationController.recalculateTrustScore);
 
 module.exports = router;

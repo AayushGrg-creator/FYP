@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../hooks/useProfile';
 import TrustScoreBadge from '../../components/profile/TrustScoreBadge';
-import { ProfileStrengthMeter } from '../../components/profile/TrustScoreBadge';
+import ProfileStrengthMeter from '../../components/profile/ProfileStrengthMeter';
 import matchService from '../../services/matchService';
 import proposalService from '../../services/proposalService';
 import jobService from '../../services/jobService';
@@ -59,6 +59,8 @@ function useRealProfile() {
     location: profile?.location || '',
     portfolio: profile?.portfolio || [],
     avatarUrl: profile?.avatarUrl || user?.avatarUrl || '',
+    githubUrl: profile?.githubUrl || '',
+linkedinUrl: profile?.linkedinUrl || '',
 
     completedFields: {
       avatar: !!(profile?.avatarUrl || user?.avatarUrl),
@@ -705,7 +707,7 @@ export default function FreelancerDashboard() {
 
                 <Card>
                   <SectionLabel>Profile Strength</SectionLabel>
-                  <ProfileStrengthMeter completedFields={profile.completedFields} />
+                  <ProfileStrengthMeter profileData={profile} />
                 </Card>
 
                 <Card>

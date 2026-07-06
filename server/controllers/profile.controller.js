@@ -51,7 +51,7 @@ exports.upsertMyProfile = async (req, res) => {
     if (req.user.role === 'client') {
       allowedFields = ['companyName', 'industryType', 'location'];
     } else {
-      allowedFields = ['bio', 'hourlyRate', 'skills', 'portfolio', 'location'];
+      allowedFields = ['bio', 'hourlyRate', 'skills', 'portfolio', 'location', 'githubUrl', 'linkedinUrl'];
     }
 
     const updateData = {};
