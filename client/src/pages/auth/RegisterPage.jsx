@@ -130,7 +130,13 @@ const RegisterPage = () => {
       <div style={s.bgCircle2} />
 
       <div style={s.card}>
-        <div style={s.logo}>Task<span style={s.logoAccent}>Tide</span></div>
+<div style={{ ...s.logo, display: 'flex', alignItems: 'center' }}>
+  <img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '60px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
+</div>
         <h1 style={s.title}>Create Account</h1>
         <p style={s.subtitle}>Join the future of freelancing</p>
 

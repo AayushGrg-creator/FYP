@@ -41,10 +41,12 @@ const BadgeSchema = new Schema(
     },
 
     // ── Visual ────────────────────────────────────────────────────────
-    // Emoji or SVG icon key used by the frontend icon registry
+    // Icon key referencing the frontend's SVG icon registry (Lucide icon
+    // set — https://lucide.dev). Render with e.g. <LucideIcon name={icon} />
+    // rather than printing the string as an emoji glyph.
     icon: {
       type: String,
-      default: '🏅',
+      default: 'award',
     },
 
     // Hex colour used for the badge ring / glow effect
@@ -140,13 +142,16 @@ BadgeSchema.index({ category: 1, tier: 1 });
 BadgeSchema.index({ isActive: 1, tier: 1 });
 
 // ── Static: seed default badge catalogue ──────────────────────────────
+// icon values are Lucide icon names (kebab-case) — render on the frontend
+// via a component like <LucideIcon name={badge.icon} /> for crisp, uniform
+// vector icons instead of platform-dependent emoji.
 BadgeSchema.statics.DEFAULTS = [
   {
     slug: 'first_blood',
     name: 'First Blood',
     description: 'Complete your very first project on TaskTide.',
     tagline: 'Every legend has a beginning.',
-    icon: '⚔️',
+    icon: 'swords',
     colour: '#10B981',
     tier: 'common',
     category: 'milestone',
@@ -158,7 +163,7 @@ BadgeSchema.statics.DEFAULTS = [
     name: 'Speed Demon',
     description: 'Deliver 5 projects ahead of schedule.',
     tagline: 'Time is the only non-renewable resource.',
-    icon: '⚡',
+    icon: 'zap',
     colour: '#F59E0B',
     tier: 'uncommon',
     category: 'speed',
@@ -170,7 +175,7 @@ BadgeSchema.statics.DEFAULTS = [
     name: 'Perfect Ten',
     description: 'Complete 10 projects each earning a 5-star rating.',
     tagline: 'Perfection is a habit, not an accident.',
-    icon: '🌟',
+    icon: 'star',
     colour: '#EF4444',
     tier: 'rare',
     category: 'quality',
@@ -182,7 +187,7 @@ BadgeSchema.statics.DEFAULTS = [
     name: 'Fast Responder',
     description: 'Reply within 5 minutes on 100 separate occasions.',
     tagline: 'In this game, speed is trust.',
-    icon: '🔔',
+    icon: 'bell-ring',
     colour: '#8B5CF6',
     tier: 'uncommon',
     category: 'speed',
@@ -194,7 +199,7 @@ BadgeSchema.statics.DEFAULTS = [
     name: 'Escrow Expert',
     description: 'Successfully complete 5 milestone-based payments without dispute.',
     tagline: 'Trust is built one milestone at a time.',
-    icon: '🔐',
+    icon: 'lock-keyhole',
     colour: '#06B6D4',
     tier: 'uncommon',
     category: 'milestone',
@@ -206,7 +211,7 @@ BadgeSchema.statics.DEFAULTS = [
     name: 'Trusted Partner',
     description: 'Achieve a Trust Score of 95 or above.',
     tagline: 'The highest tier of platform credibility.',
-    icon: '🛡️',
+    icon: 'shield-check',
     colour: '#F59E0B',
     tier: 'epic',
     category: 'reliability',
@@ -218,7 +223,7 @@ BadgeSchema.statics.DEFAULTS = [
     name: 'Early Bird',
     description: 'Complete your profile within 24 hours of registration.',
     tagline: 'First impressions matter most.',
-    icon: '🌅',
+    icon: 'sunrise',
     colour: '#10B981',
     tier: 'common',
     category: 'engagement',
@@ -230,7 +235,7 @@ BadgeSchema.statics.DEFAULTS = [
     name: 'Top Rated',
     description: 'Maintain an average rating of 4.8 or above across 20+ reviews.',
     tagline: 'Consistency is the rarest skill of all.',
-    icon: '👑',
+    icon: 'crown',
     colour: '#F59E0B',
     tier: 'legendary',
     category: 'quality',

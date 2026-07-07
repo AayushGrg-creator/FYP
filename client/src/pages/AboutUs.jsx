@@ -25,7 +25,7 @@ export default function AboutUs() {
             <p>We set out to fix that. By combining smart matching technology, secure escrow payments, and a community built on trust, Task Tide became the platform where real work gets done — fast, safely, and at any scale.</p>
             <p>Today, over 50,000 freelancers and thousands of businesses use Task Tide every day to build products, grow brands, and get things done.</p>
           </div>
-          <div className={styles.twoColVisual}>🌊<br /><br /><strong style={{fontSize:'1rem', color:'#0ea5e9'}}>Ride the tide of opportunity</strong></div>
+          <div className={styles.twoColVisual}><br /><br /><strong style={{fontSize:'1rem', color:'#0ea5e9'}}>Ride the tide of opportunity</strong></div>
         </div>
 
         <hr className={styles.divider} />
@@ -35,17 +35,17 @@ export default function AboutUs() {
 
         <div className={styles.cardsGrid}>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🤝</span>
+            <span className={styles.cardIcon}></span>
             <h3>Trust First</h3>
             <p>Every feature we build — escrow, verified reviews, dispute resolution — is designed to protect both clients and freelancers. Trust is our foundation.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🌍</span>
+            <span className={styles.cardIcon}></span>
             <h3>Global Reach</h3>
             <p>Task Tide connects talent across borders. Whether you're in Kathmandu or New York, great work has no geography.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>⚡</span>
+            <span className={styles.cardIcon}></span>
             <h3>Speed & Simplicity</h3>
             <p>We obsess over removing friction. Post a project, get proposals, hire, pay — the whole process in hours, not days.</p>
           </div>

@@ -624,7 +624,7 @@ function FileRow({ file, currentUserId, isAdmin, onDelete, deleting }) {
         gap:          12,
       }}
     >
-      <span style={{ fontSize:16, flexShrink:0 }}>📄</span>
+      <span style={{ fontSize:16, flexShrink:0 }}></span>
 
       <div style={{ flex:1, minWidth:0 }}>
         <a
@@ -819,7 +819,7 @@ function ParticipantCard({ participant, label }) {
           {label} · {participant?.email || ''}
         </div>
       </div>
-      {participant?.trustScore !== undefined && (
+      {label === 'Freelancer' && participant?.trustScore !== undefined && (
         <div style={{ marginLeft:'auto', textAlign:'right' }}>
           <div style={{ fontSize:12, color:'#a3e635', fontFamily:'monospace' }}>
             {participant.trustScore}
@@ -904,7 +904,7 @@ function ContractPanel({
       }}
     >
       {/* ── Overview ── */}
-      <Section title="Overview" icon="📋">
+      <Section title="Overview" icon="">
         <div
           style={{
             display:             'grid',
@@ -975,7 +975,7 @@ function ContractPanel({
       </Section>
 
       {/* ── Milestones ── */}
-      <Section title="Milestones" icon="🎯">
+      <Section title="Milestones" icon="">
         <MilestoneTimeline milestones={project.milestones} />
         {(() => {
   const sorted = project.milestones?.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) || [];
@@ -1033,7 +1033,7 @@ function ContractPanel({
       </Section>
 
       {/* ── Files ── */}
-      <Section title="Files" icon="📁">
+      <Section title="Files" icon="">
         <FilesPanel
           projectId={projectId}
           files={project.files}
@@ -1042,7 +1042,7 @@ function ContractPanel({
       </Section>
 
       {/* ── Participants ── */}
-      <Section title="Participants" icon="👥">
+      <Section title="Participants" icon="">
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
           <ParticipantCard participant={project.client}     label="Client" />
           <ParticipantCard participant={project.freelancer} label="Freelancer" />
@@ -1253,7 +1253,7 @@ const handleCancelMilestone = useCallback(async (milestoneId) => {
           gap:            16,
         }}
       >
-        <span style={{ fontSize:32 }}>⚠️</span>
+        <span style={{ fontSize:32 }}></span>
         <p style={{ color:'#f87171', fontFamily:'monospace', fontSize:14 }}>{error}</p>
         <button
           onClick={() => navigate('/dashboard')}
@@ -1376,7 +1376,7 @@ const handleCancelMilestone = useCallback(async (milestoneId) => {
                   textTransform:'capitalize',
                 }}
               >
-                {tab === 'chat' ? '💬' : '📋'} {tab}
+                {tab === 'chat' ? '' : ''} {tab}
               </button>
             ))}
           </div>

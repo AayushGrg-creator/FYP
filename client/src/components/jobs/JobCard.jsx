@@ -145,8 +145,8 @@ export default function JobCard({ job, onApply }) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
   card: {
-    background: '#111827',
-    border: '1px solid #1E293B',
+    background: '#FFFFFF',
+    border: '1px solid #E2E8F0',
     borderRadius: 14,
     padding: '22px',
     display: 'flex',
@@ -156,6 +156,7 @@ const styles = {
     boxSizing: 'border-box',
     width: '100%',
     marginBottom: '16px',
+    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
   },
   cardHeader: {
     display: 'flex',
@@ -164,8 +165,8 @@ const styles = {
     marginBottom: 12,
   },
   categoryBadge: {
-    background: '#0F2235',
-    color: '#0EA5E9',
+    background: '#E0F2FE',
+    color: '#0284C7',
     fontSize: '11px',
     fontWeight: 700,
     textTransform: 'uppercase',
@@ -175,7 +176,7 @@ const styles = {
   },
   timestamp: {
     fontSize: '12px',
-    color: '#64748B',
+    color: '#94A3B8',
     fontWeight: 500,
   },
   contentBlock: {
@@ -188,14 +189,14 @@ const styles = {
     margin: '0 0 8px 0',
     fontSize: '18px',
     fontWeight: 700,
-    color: '#F1F5F9',
+    color: '#0F172A',
     lineHeight: '1.4',
     transition: 'color 0.15s ease',
   },
   description: {
     margin: 0,
     fontSize: '14px',
-    color: '#94A3B8',
+    color: '#64748B',
     lineHeight: '1.6',
   },
   tagCloud: {
@@ -205,8 +206,8 @@ const styles = {
     marginBottom: 18,
   },
   skillTag: {
-    background: '#1E293B',
-    color: '#94A3B8',
+    background: '#F1F5F9',
+    color: '#475569',
     padding: '5px 12px',
     borderRadius: '20px',
     fontSize: '12px',
@@ -214,7 +215,7 @@ const styles = {
   },
   moreTags: {
     fontSize: '12px',
-    color: '#64748B',
+    color: '#94A3B8',
     alignSelf: 'center',
     fontWeight: 600,
     marginLeft: 2,
@@ -223,10 +224,10 @@ const styles = {
     display: 'flex',
     gap: 32,
     marginBottom: 16,
-    background: '#0B1120',
+    background: '#F8FAFC',
     padding: '12px 16px',
     borderRadius: '10px',
-    border: '1px solid #1E293B',
+    border: '1px solid #E2E8F0',
   },
   paramItem: {
     display: 'flex',
@@ -236,24 +237,24 @@ const styles = {
   paramLabel: {
     fontSize: '11px',
     fontWeight: 700,
-    color: '#64748B',
+    color: '#94A3B8',
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
   },
   paramValue: {
     fontSize: '14px',
     fontWeight: 700,
-    color: '#F1F5F9',
+    color: '#0F172A',
     fontVariantNumeric: 'tabular-nums',
   },
   budgetTypeLabel: {
     fontSize: '12px',
     fontWeight: 500,
-    color: '#64748B',
+    color: '#94A3B8',
   },
   divider: {
     height: '1px',
-    background: '#1E293B',
+    background: '#E2E8F0',
     marginBottom: 16,
     marginTop: 'auto', // Pushes down the footer row evenly regardless of description lengths
   },
@@ -276,7 +277,7 @@ const styles = {
   clientName: {
     fontSize: '13.5px',
     fontWeight: 600,
-    color: '#E2E8F0',
+    color: '#1E293B',
   },
   ratingWrap: {
     display: 'flex',
@@ -302,7 +303,7 @@ const styles = {
   viewBtn: {
     background: 'transparent',
     color: '#0EA5E9',
-    border: '1px solid #1E293B',
+    border: '1px solid #E2E8F0',
     borderRadius: '8px',
     padding: '8px 16px',
     fontSize: '13.5px',

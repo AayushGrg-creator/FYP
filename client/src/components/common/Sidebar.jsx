@@ -17,21 +17,21 @@ export default function Sidebar() {
 
   // ── Dynamic Navigation Configuration Base ──
   const clientLinks = [
-    { path: '/dashboard/client', label: '📊 Overview', exact: true },
-    { path: '/jobs/post', label: '➕ Post a New Job' },
-    { path: '/jobs/manage', label: '💼 My Postings' },
-    { path: '/workspace', label: '🤝 Project Workspaces' },
-    { path: '/payments', label: '💳 Escrow Wallet' },
-    { path: '/admin/disputes', label: '⚖️ Conflict Log', roleGuard: 'admin' }
+    { path: '/dashboard/client', label: ' Overview', exact: true },
+    { path: '/jobs/post', label: ' Post a New Job' },
+    { path: '/jobs/manage', label: ' My Postings' },
+    { path: '/workspace', label: ' Project Workspaces' },
+    { path: '/payments', label: ' Escrow Wallet' },
+    { path: '/admin/disputes', label: ' Conflict Log', roleGuard: 'admin' }
   ];
 
   const freelancerLinks = [
-    { path: '/dashboard/freelancer', label: '📊 Dashboard Overview', exact: true },
-    { path: '/matching/recommendations', label: '🧠 AI Smart Match' },
-    { path: '/jobs', label: '🔍 Browse Live Jobs' },
-    { path: '/workspace', label: '💬 Active Contracts' },
-    { path: '/leaderboards', label: '🏆 Platform Rankings' },
-    { path: '/payments', label: '💸 Earnings & Wallet' }
+    { path: '/dashboard/freelancer', label: ' Dashboard Overview', exact: true },
+    { path: '/matching/recommendations', label: ' AI Smart Match' },
+    { path: '/jobs', label: ' Browse Live Jobs' },
+    { path: '/workspace', label: ' Active Contracts' },
+    { path: '/leaderboards', label: ' Platform Rankings' },
+    { path: '/payments', label: ' Earnings & Wallet' }
   ];
 
   // Resolve which collection to loop over based on the user session context
@@ -54,7 +54,7 @@ export default function Sidebar() {
         <div style={styles.metaData}>
           <div style={styles.nameLabel}>{user.name || 'User Profile'}</div>
           <div style={styles.roleTag}>
-            {user.role === 'client' ? '💼 Client Account' : '🚀 Freelancer'}
+            {user.role === 'client' ? ' Client Account' : ' Freelancer'}
           </div>
         </div>
       </div>

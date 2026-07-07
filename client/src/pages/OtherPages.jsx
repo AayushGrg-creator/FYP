@@ -19,7 +19,11 @@ export function SuccessStories() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+   <img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -75,7 +79,11 @@ export function TalentMarketplace() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -92,12 +100,12 @@ export function TalentMarketplace() {
         <p className={styles.sectionSub}>Our marketplace makes it easy to discover, compare, and hire top talent.</p>
 
         <div className={styles.cardsGrid}>
-          <div className={styles.card}><span className={styles.cardIcon}>🔍</span><h3>Smart Search</h3><p>Filter by skill, budget, rating, location, and availability. Our AI-powered search surfaces the most relevant talent instantly.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>📋</span><h3>Detailed Profiles</h3><p>Every freelancer profile shows their skills, portfolio, completed projects, ratings, and response time so you can decide with confidence.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>💬</span><h3>Chat Before You Hire</h3><p>Message freelancers directly before committing. Clarify scope, ask questions, and get a feel for their communication style.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>⚡</span><h3>Quick Hire</h3><p>See a gig you love? Buy it instantly. No negotiations needed — just pick your package and get started today.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>🎯</span><h3>AI Matching</h3><p>Post your project and let our TF-IDF matching engine automatically suggest the freelancers most likely to succeed on your work.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>🏆</span><h3>Top-Rated Filter</h3><p>Filter exclusively for Level 2 and PRO freelancers for mission-critical work where quality is non-negotiable.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Smart Search</h3><p>Filter by skill, budget, rating, location, and availability. Our AI-powered search surfaces the most relevant talent instantly.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Detailed Profiles</h3><p>Every freelancer profile shows their skills, portfolio, completed projects, ratings, and response time so you can decide with confidence.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Chat Before You Hire</h3><p>Message freelancers directly before committing. Clarify scope, ask questions, and get a feel for their communication style.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Quick Hire</h3><p>See a gig you love? Buy it instantly. No negotiations needed — just pick your package and get started today.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>AI Matching</h3><p>Post your project and let our TF-IDF matching engine automatically suggest the freelancers most likely to succeed on your work.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Top-Rated Filter</h3><p>Filter exclusively for Level 2 and PRO freelancers for mission-critical work where quality is non-negotiable.</p></div>
         </div>
 
         <div className={styles.ctaBox}>
@@ -121,7 +129,11 @@ export function Enterprise() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -138,12 +150,12 @@ export function Enterprise() {
         <p className={styles.sectionSub}>From startups to large organisations, Task Tide adapts to your scale.</p>
 
         <div className={styles.cardsGrid}>
-          <div className={styles.card}><span className={styles.cardIcon}>🏢</span><h3>Dedicated Account Manager</h3><p>Enterprise clients get a dedicated account manager who handles sourcing, vetting, and onboarding talent on your behalf.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>👥</span><h3>Team Collaboration</h3><p>Manage multiple projects across departments with shared dashboards, unified billing, and role-based access control.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>📊</span><h3>Spend Analytics</h3><p>Track your freelance spend in real time with detailed reports, budget controls, and cost-per-project breakdowns.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>🔒</span><h3>Enhanced Security</h3><p>Enterprise accounts include mandatory NDA agreements, IP assignment clauses, and SSO integration for your team.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>⚡</span><h3>Priority Talent Access</h3><p>Enterprise clients get first access to PRO-level freelancers before they're listed publicly on the marketplace.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>💰</span><h3>Volume Pricing</h3><p>Reduced platform fees and custom billing cycles for organisations with high project volume. Contact us for a quote.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Dedicated Account Manager</h3><p>Enterprise clients get a dedicated account manager who handles sourcing, vetting, and onboarding talent on your behalf.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Team Collaboration</h3><p>Manage multiple projects across departments with shared dashboards, unified billing, and role-based access control.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Spend Analytics</h3><p>Track your freelance spend in real time with detailed reports, budget controls, and cost-per-project breakdowns.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Enhanced Security</h3><p>Enterprise accounts include mandatory NDA agreements, IP assignment clauses, and SSO integration for your team.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Priority Talent Access</h3><p>Enterprise clients get first access to PRO-level freelancers before they're listed publicly on the marketplace.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Volume Pricing</h3><p>Reduced platform fees and custom billing cycles for organisations with high project volume. Contact us for a quote.</p></div>
         </div>
 
         <div className={styles.ctaBox}>
@@ -167,7 +179,11 @@ export function Resources() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -184,12 +200,12 @@ export function Resources() {
         <p className={styles.sectionSub}>New to Task Tide? These guides will get you up and running fast.</p>
 
         <div className={styles.cardsGrid}>
-          <div className={styles.card}><span className={styles.cardIcon}>📝</span><h3>How to Write a Winning Proposal</h3><p>Learn how to craft proposals that stand out from the crowd and convert clients — with real examples and templates.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>🖼️</span><h3>Building a Portfolio That Gets Hired</h3><p>Your portfolio is your storefront. Find out what clients actually look for and how to showcase your best work.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>💰</span><h3>How to Price Your Services</h3><p>Undercharging is as damaging as overcharging. Use our rate calculator and guidelines to price with confidence.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>⭐</span><h3>Getting Your First 5-Star Review</h3><p>First impressions matter. Follow this checklist to nail your first project and earn a review that opens doors.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>📈</span><h3>Scaling From Side Hustle to Full-Time</h3><p>Ready to go full-time freelance? This guide covers finances, client pipelines, and making the leap safely.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>🤝</span><h3>Managing Client Relationships</h3><p>Communication, feedback, and boundaries — how to keep clients happy and coming back for more.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>How to Write a Winning Proposal</h3><p>Learn how to craft proposals that stand out from the crowd and convert clients — with real examples and templates.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Building a Portfolio That Gets Hired</h3><p>Your portfolio is your storefront. Find out what clients actually look for and how to showcase your best work.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>How to Price Your Services</h3><p>Undercharging is as damaging as overcharging. Use our rate calculator and guidelines to price with confidence.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Getting Your First 5-Star Review</h3><p>First impressions matter. Follow this checklist to nail your first project and earn a review that opens doors.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Scaling From Side Hustle to Full-Time</h3><p>Ready to go full-time freelance? This guide covers finances, client pipelines, and making the leap safely.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Managing Client Relationships</h3><p>Communication, feedback, and boundaries — how to keep clients happy and coming back for more.</p></div>
         </div>
 
         <div className={styles.ctaBox}>
@@ -221,7 +237,11 @@ export function Careers() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -246,7 +266,7 @@ export function Careers() {
               <li><span className={styles.check}>✓</span> Annual team retreats</li>
             </ul>
           </div>
-          <div className={styles.twoColVisual}>🚀<br /><br /><strong style={{fontSize:'1rem', color:'#0ea5e9'}}>Join a team building something meaningful</strong></div>
+          <div className={styles.twoColVisual}><br /><br /><strong style={{fontSize:'1rem', color:'#0ea5e9'}}>Join a team building something meaningful</strong></div>
         </div>
 
         <hr className={styles.divider} />
@@ -288,18 +308,22 @@ export function Careers() {
 // ─────────────────────────────────────────────
 export function Blog() {
   const posts = [
-    { emoji: '🚀', tag: 'Freelancing', date: 'Jun 10, 2026', title: '10 Ways to Win More Clients in 2026', desc: 'The freelance market is more competitive than ever. Here are the proven strategies top sellers use to consistently land high-value clients.' },
-    { emoji: '💰', tag: 'Earnings', date: 'Jun 3, 2026', title: 'How to Raise Your Rates Without Losing Clients', desc: 'Charging more is scary. But undercharging is worse. This guide walks you through a proven framework for increasing your rates gracefully.' },
-    { emoji: '🎨', tag: 'Design', date: 'May 28, 2026', title: 'Portfolio Tips: What Clients Actually Look For', desc: 'We asked 100 clients what makes a freelancer portfolio stand out. The results might surprise you .' },
-    { emoji: '🤖', tag: 'AI', date: 'May 20, 2026', title: 'AI Skills That Are Booming on Task Tide Right Now', desc: 'Prompt engineering, fine-tuning, and AI automation are the fastest-growing categories on our platform. ' },
-    { emoji: '⚡', tag: 'Productivity', date: 'May 12, 2026', title: 'How Pro Freelancers Manage 5+ Projects at Once', desc: 'Top freelancers don\'t work harder — they work smarter. These are the tools, systems, and habits that keep them on top of everything.' },
-    { emoji: '🌍', tag: 'Remote Work', date: 'May 5, 2026', title: 'The Complete Guide to Getting Paid Internationally', desc: 'Navigating cross-border payments as a freelancer in Nepal or South Asia. Stripe, Khalti, bank transfers — everything explained.' },
+    { emoji: '', tag: 'Freelancing', date: 'Jun 10, 2026', title: '10 Ways to Win More Clients in 2026', desc: 'The freelance market is more competitive than ever. Here are the proven strategies top sellers use to consistently land high-value clients.' },
+    { emoji: '', tag: 'Earnings', date: 'Jun 3, 2026', title: 'How to Raise Your Rates Without Losing Clients', desc: 'Charging more is scary. But undercharging is worse. This guide walks you through a proven framework for increasing your rates gracefully.' },
+    { emoji: '', tag: 'Design', date: 'May 28, 2026', title: 'Portfolio Tips: What Clients Actually Look For', desc: 'We asked 100 clients what makes a freelancer portfolio stand out. The results might surprise you .' },
+    { emoji: '', tag: 'AI', date: 'May 20, 2026', title: 'AI Skills That Are Booming on Task Tide Right Now', desc: 'Prompt engineering, fine-tuning, and AI automation are the fastest-growing categories on our platform. ' },
+    { emoji: '', tag: 'Productivity', date: 'May 12, 2026', title: 'How Pro Freelancers Manage 5+ Projects at Once', desc: 'Top freelancers don\'t work harder — they work smarter. These are the tools, systems, and habits that keep them on top of everything.' },
+    { emoji: '', tag: 'Remote Work', date: 'May 5, 2026', title: 'The Complete Guide to Getting Paid Internationally', desc: 'Navigating cross-border payments as a freelancer in Nepal or South Asia. Stripe, Khalti, bank transfers — everything explained.' },
   ];
 
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -351,7 +375,11 @@ export function Contact() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -405,23 +433,23 @@ export function Contact() {
 
           <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
             <div className={styles.card}>
-              <span className={styles.cardIcon}>📧</span>
+              <span className={styles.cardIcon}></span>
               <h3>Email Support</h3>
               <p>For general enquiries: <strong style={{color:'#0ea5e9'}}>support@tasktide.com</strong></p>
               <p style={{marginTop:'0.5rem'}}>For enterprise: <strong style={{color:'#0ea5e9'}}>enterprise@tasktide.com</strong></p>
             </div>
             <div className={styles.card}>
-              <span className={styles.cardIcon}>💬</span>
+              <span className={styles.cardIcon}></span>
               <h3>Live Chat</h3>
               <p>Available Mon–Fri, 9am–6pm NPT. Start a chat directly from your dashboard once logged in.</p>
             </div>
             <div className={styles.card}>
-              <span className={styles.cardIcon}>📍</span>
+              <span className={styles.cardIcon}></span>
               <h3>Office</h3>
               <p>Task Tide HQ<br />Kathmandu, Bagmati Province<br />Nepal 44600</p>
             </div>
             <div className={styles.card}>
-              <span className={styles.cardIcon}>⏱️</span>
+              <span className={styles.cardIcon}>⏱</span>
               <h3>Response Time</h3>
               <p>We aim to respond to all enquiries within <strong>24 hours</strong> on business days.</p>
             </div>

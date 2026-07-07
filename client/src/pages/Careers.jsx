@@ -1,24 +1,29 @@
 import { Link } from 'react-router-dom';
 import styles from '../styles/footerPages.module.css';
 
-
-
 // ─────────────────────────────────────────────
 // CAREERS
 // ─────────────────────────────────────────────
 export function Careers() {
   const jobs = [
-    { title: 'Senior Full-Stack Engineer', team: 'Engineering', location: 'Remote', type: 'Full-Time' },
-    { title: 'Product Designer (UI/UX)', team: 'Design', location: 'Kathmandu / Remote', type: 'Full-Time' },
-    { title: 'Growth Marketing Manager', team: 'Marketing', location: 'Remote', type: 'Full-Time' },
-    { title: 'Customer Success Specialist', team: 'Support', location: 'Kathmandu', type: 'Full-Time' },
-    { title: 'Data Analyst', team: 'Data', location: 'Remote', type: 'Full-Time' },
+    { title: 'Senior Full-Stack Engineer', team: 'Engineering', location: 'Remote' },
+    { title: 'Product Designer (UI/UX)', team: 'Design', location: 'Kathmandu / Remote' },
+    { title: 'Growth Marketing Manager', team: 'Marketing', location: 'Remote' },
+    { title: 'Customer Success Specialist', team: 'Support', location: 'Kathmandu' },
+    { title: 'Data Analyst', team: 'Data', location: 'Remote' },
   ];
 
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+        <Link to="/" className={styles.logo} style={{ display: 'flex', alignItems: 'center' }}>
+          <img
+            src="/logo.png"
+            alt="TaskTide Logo"
+            style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+          />
+          Task<span>Tide</span>
+        </Link>
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -57,10 +62,6 @@ export function Careers() {
               <div>
                 <h3 style={{marginBottom:'0.25rem'}}>{job.title}</h3>
                 <span style={{color:'#6b7280', fontSize:'0.85rem'}}>{job.team} · {job.location}</span>
-              </div>
-              <div style={{display:'flex', gap:'0.75rem', alignItems:'center'}}>
-                <span className={`${styles.badge} ${styles.badgeGreen}`}>{job.type}</span>
-                <Link to="/contact" className={`${styles.btn} ${styles.btnPrimary}`} style={{padding:'0.5rem 1.25rem', fontSize:'0.85rem'}}>Apply</Link>
               </div>
             </div>
           ))}

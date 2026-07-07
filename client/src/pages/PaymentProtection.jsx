@@ -5,7 +5,11 @@ export default function PaymentProtection() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -30,7 +34,7 @@ export default function PaymentProtection() {
               <li><span className={styles.check}>✓</span> 24/7 dispute resolution team</li>
             </ul>
           </div>
-          <div className={styles.twoColVisual}>🔒<br /><br /><strong style={{fontSize:'1rem', color:'#0ea5e9'}}>Your funds are protected at every step</strong></div>
+          <div className={styles.twoColVisual}><br /><br /><strong style={{fontSize:'1rem', color:'#0ea5e9'}}>Your funds are protected at every step</strong></div>
         </div>
 
         <hr className={styles.divider} />
@@ -40,17 +44,17 @@ export default function PaymentProtection() {
 
         <div className={styles.cardsGrid}>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>💳</span>
+            <span className={styles.cardIcon}></span>
             <h3>Stripe (International)</h3>
             <p>Pay with any major credit or debit card via Stripe — Visa, Mastercard, Amex. Fully encrypted and PCI-compliant.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🇳🇵</span>
+            <span className={styles.cardIcon}></span>
             <h3>Khalti (Nepal)</h3>
             <p>Nepal-based clients can pay using Khalti wallet for fast, local transactions without international card fees.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🏦</span>
+            <span className={styles.cardIcon}></span>
             <h3>Bank Transfer</h3>
             <p>Prefer traditional banking? We support direct bank transfers for verified business accounts on large projects.</p>
           </div>

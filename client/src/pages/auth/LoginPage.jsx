@@ -96,9 +96,13 @@ function LoginPage() {
       <div style={s.card}>
 
         {/* Logo */}
-        <div style={s.logo}>
-          Task<span style={s.logoAccent}>Tide</span>
-        </div>
+        <div style={{ ...s.logo, display: 'flex', alignItems: 'center' }}>
+  <img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '60px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
+</div>
 
         {/* Heading */}
         <h1 style={s.title}>Welcome Back</h1>

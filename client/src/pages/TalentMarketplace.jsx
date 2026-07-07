@@ -25,12 +25,12 @@ export function TalentMarketplace() {
         <p className={styles.sectionSub}>Our marketplace makes it easy to discover, compare, and hire top talent.</p>
 
         <div className={styles.cardsGrid}>
-          <div className={styles.card}><span className={styles.cardIcon}>🔍</span><h3>Smart Search</h3><p>Filter by skill, budget, rating, location, and availability. Our AI-powered search surfaces the most relevant talent instantly.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>📋</span><h3>Detailed Profiles</h3><p>Every freelancer profile shows their skills, portfolio, completed projects, ratings, and response time so you can decide with confidence.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>💬</span><h3>Chat Before You Hire</h3><p>Message freelancers directly before committing. Clarify scope, ask questions, and get a feel for their communication style.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>⚡</span><h3>Quick Hire</h3><p>See a gig you love? Buy it instantly. No negotiations needed — just pick your package and get started today.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>🎯</span><h3>AI Matching</h3><p>Post your project and let our TF-IDF matching engine automatically suggest the freelancers most likely to succeed on your work.</p></div>
-          <div className={styles.card}><span className={styles.cardIcon}>🏆</span><h3>Top-Rated Filter</h3><p>Filter exclusively for Level 2 and PRO freelancers for mission-critical work where quality is non-negotiable.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Smart Search</h3><p>Filter by skill, budget, rating, location, and availability. Our AI-powered search surfaces the most relevant talent instantly.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Detailed Profiles</h3><p>Every freelancer profile shows their skills, portfolio, completed projects, ratings, and response time so you can decide with confidence.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Chat Before You Hire</h3><p>Message freelancers directly before committing. Clarify scope, ask questions, and get a feel for their communication style.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Quick Hire</h3><p>See a gig you love? Buy it instantly. No negotiations needed — just pick your package and get started today.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>AI Matching</h3><p>Post your project and let our TF-IDF matching engine automatically suggest the freelancers most likely to succeed on your work.</p></div>
+          <div className={styles.card}><span className={styles.cardIcon}></span><h3>Top-Rated Filter</h3><p>Filter exclusively for Level 2 and PRO freelancers for mission-critical work where quality is non-negotiable.</p></div>
         </div>
 
         <div className={styles.ctaBox}>

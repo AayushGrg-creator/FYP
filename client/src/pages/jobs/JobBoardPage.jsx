@@ -269,20 +269,19 @@ function getTimeAgo(date) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
 }
-
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
-  page: { minHeight: '100vh', background: '#0B1120', fontFamily: "'DM Sans', sans-serif" },
-  heroBar: { background: '#111827', borderBottom: '1px solid #1E293B', padding: '32px 24px' },
+  page: { minHeight: '100vh', background: '#F8FAFC', fontFamily: "'DM Sans', sans-serif" },
+  heroBar: { background: '#FFFFFF', borderBottom: '1px solid #E2E8F0', padding: '32px 24px' },
   heroInner: { maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' },
   heroText: { flexShrink: 0 },
-  heroTitle: { margin: 0, fontSize: 28, fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em' },
+  heroTitle: { margin: 0, fontSize: 28, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' },
   heroSub: { margin: '4px 0 0', color: '#64748B', fontSize: 14 },
   searchWrap: {
     flex: 1, minWidth: 280,
     display: 'flex', alignItems: 'center',
-    background: '#0B1120',
-    border: '1px solid #1E293B',
+    background: '#F8FAFC',
+    border: '1px solid #E2E8F0',
     borderRadius: 10,
     padding: '0 14px',
     gap: 10,
@@ -290,15 +289,15 @@ const styles = {
   searchIcon: { fontSize: 16, flexShrink: 0 },
   searchInput: {
     flex: 1, background: 'transparent', border: 'none', outline: 'none',
-    color: '#F1F5F9', fontSize: 15, padding: '13px 0',
+    color: '#0F172A', fontSize: 15, padding: '13px 0',
     fontFamily: 'inherit',
   },
-  clearSearch: { background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 16 },
+  clearSearch: { background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: 16 },
 
   body: { maxWidth: 1100, margin: '0 auto', padding: '24px 24px 80px' },
   mobileFilterToggle: { display: 'none', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   filterToggleBtn: {
-    background: '#111827', border: '1px solid #1E293B', color: '#CBD5E1',
+    background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#334155',
     borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14,
     display: 'flex', alignItems: 'center', gap: 6,
   },
@@ -310,23 +309,23 @@ const styles = {
   main: { flex: 1, minWidth: 0 },
   toolbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   sortSelect: {
-    background: '#111827', border: '1px solid #1E293B', color: '#CBD5E1',
+    background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#334155',
     borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 13,
     fontFamily: 'inherit', outline: 'none',
   },
-  errorBox: { background: '#450A0A', border: '1px solid #7F1D1D', color: '#FCA5A5', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 14 },
+  errorBox: { background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#B91C1C', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 14 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 },
   empty: { textAlign: 'center', padding: '80px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 },
   emptyIcon: { fontSize: 48, marginBottom: 8 },
   resetAllBtn: {
-    marginTop: 16, background: 'transparent', border: '1px solid #1E293B',
+    marginTop: 16, background: 'transparent', border: '1px solid #E2E8F0',
     color: '#0EA5E9', borderRadius: 8, padding: '10px 24px', cursor: 'pointer', fontSize: 14,
   },
 
   cardLink: { textDecoration: 'none' },
   jobCard: {
-    background: '#111827',
-    border: '1px solid #1E293B',
+    background: '#FFFFFF',
+    border: '1px solid #E2E8F0',
     borderRadius: 14,
     padding: '20px',
     cursor: 'pointer',
@@ -334,28 +333,29 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
     ':hover': { borderColor: '#0EA5E9' },
   },
   cardTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   categoryPill: { borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600, textTransform: 'capitalize' },
-  timeAgo: { color: '#475569', fontSize: 12 },
-  jobTitle: { margin: 0, color: '#F1F5F9', fontSize: 16, fontWeight: 700, lineHeight: 1.3 },
+  timeAgo: { color: '#94A3B8', fontSize: 12 },
+  jobTitle: { margin: 0, color: '#0F172A', fontSize: 16, fontWeight: 700, lineHeight: 1.3 },
   jobDesc: { margin: 0, color: '#64748B', fontSize: 13, lineHeight: 1.6 },
   skillRow: { display: 'flex', flexWrap: 'wrap', gap: 6 },
   skillPill: {
-    background: '#0F172A', border: '1px solid #1E293B',
-    color: '#94A3B8', borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 500,
+    background: '#F1F5F9', border: '1px solid #E2E8F0',
+    color: '#475569', borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 500,
   },
   cardFooter: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   budget: { display: 'flex', flexDirection: 'column' },
   budgetAmt: { color: '#0EA5E9', fontSize: 14, fontWeight: 700 },
-  budgetType: { color: '#475569', fontSize: 11, textTransform: 'capitalize' },
+  budgetType: { color: '#94A3B8', fontSize: 11, textTransform: 'capitalize' },
 
-  skeleton: { background: '#1E293B', borderRadius: 6, animation: 'pulse 1.5s ease-in-out infinite' },
+  skeleton: { background: '#E2E8F0', borderRadius: 6, animation: 'pulse 1.5s ease-in-out infinite' },
 
   pagination: { display: 'flex', justifyContent: 'center', gap: 6, marginTop: 36, flexWrap: 'wrap', alignItems: 'center' },
   pageBtn: {
-    background: '#111827', border: '1px solid #1E293B', color: '#94A3B8',
+    background: '#FFFFFF', border: '1px solid #E2E8F0', color: '#475569',
     borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 14,
     transition: 'all 0.15s',
     ':disabled': { opacity: 0.4, cursor: 'default' },

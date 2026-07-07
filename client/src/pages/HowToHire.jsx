@@ -5,7 +5,13 @@ export default function HowToHire() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<Link to="/" className={styles.logo} style={{ display: 'flex', alignItems: 'center' }}>
+  <img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
+</Link>
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -73,32 +79,32 @@ export default function HowToHire() {
 
         <div className={styles.cardsGrid}>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🔒</span>
+            <span className={styles.cardIcon}></span>
             <h3>Secure Escrow Payments</h3>
             <p>Your money is only released when you approve the work. No risk, no stress — complete payment protection on every project.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>⭐</span>
+            <span className={styles.cardIcon}></span>
             <h3>Verified Reviews</h3>
             <p>Every rating on Task Tide comes from a real, completed project. No fake reviews — just honest feedback from real clients.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🤖</span>
+            <span className={styles.cardIcon}></span>
             <h3>Smart Matching</h3>
             <p>Our AI-powered matching engine suggests the best freelancers for your specific project based on skills, history, and ratings.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>💬</span>
+            <span className={styles.cardIcon}></span>
             <h3>Real-Time Messaging</h3>
             <p>Communicate instantly with freelancers using our built-in chat — no need for external email or third-party tools.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🛡️</span>
+            <span className={styles.cardIcon}></span>
             <h3>Dispute Resolution</h3>
             <p>If something goes wrong, our 24/7 support team steps in to mediate and resolve disputes fairly for both parties.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>📄</span>
+            <span className={styles.cardIcon}></span>
             <h3>IP & NDA Protection</h3>
             <p>All work produced belongs to you. Optional NDA agreements are available to keep your project fully confidential.</p>
           </div>

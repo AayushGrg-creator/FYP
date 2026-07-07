@@ -5,7 +5,11 @@ export default function SellerLevels() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+<img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>

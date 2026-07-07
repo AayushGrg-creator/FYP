@@ -352,7 +352,7 @@ export default function PostJobPage() {
               disabled={loading}
               onClick={handleSubmit}
             >
-              {loading ? 'Posting…' : '🚀 Post Job'}
+              {loading ? 'Posting…' : 'Post Job'}
             </button>
           )}
         </div>
@@ -374,7 +374,7 @@ function ReviewRow({ label, value }) {
 const styles = {
   page: {
     minHeight: '100vh',
-    background: '#0B1120',
+    background: '#F8FAFC',
     padding: '40px 24px 80px',
     fontFamily: "'DM Sans', sans-serif",
   },
@@ -383,7 +383,7 @@ const styles = {
     margin: 0,
     fontSize: 32,
     fontWeight: 700,
-    color: '#F1F5F9',
+    color: '#0F172A',
     letterSpacing: '-0.02em',
   },
   subtitle: { margin: '8px 0 0', color: '#64748B', fontSize: 16 },
@@ -417,15 +417,16 @@ const styles = {
   card: {
     maxWidth: 720,
     margin: '0 auto',
-    background: '#111827',
-    border: '1px solid #1E293B',
+    background: '#FFFFFF',
+    border: '1px solid #E2E8F0',
     borderRadius: 16,
     padding: '36px 40px',
+    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
   },
   errorBox: {
-    background: '#450A0A',
-    border: '1px solid #7F1D1D',
-    color: '#FCA5A5',
+    background: '#FEF2F2',
+    border: '1px solid #FCA5A5',
+    color: '#B91C1C',
     borderRadius: 8,
     padding: '12px 16px',
     marginBottom: 24,
@@ -434,15 +435,15 @@ const styles = {
   fields: { display: 'flex', flexDirection: 'column', gap: 24 },
   field:  { display: 'flex', flexDirection: 'column', gap: 6 },
   row:    { display: 'flex', gap: 20 },
-  label:  { color: '#CBD5E1', fontSize: 14, fontWeight: 600 },
+  label:  { color: '#334155', fontSize: 14, fontWeight: 600 },
   req:    { color: '#0EA5E9' },
-  hint:   { color: '#475569', fontSize: 12, marginTop: 2 },
+  hint:   { color: '#94A3B8', fontSize: 12, marginTop: 2 },
   input: {
-    background: '#0B1120',
-    border: '1px solid #1E293B',
+    background: '#F8FAFC',
+    border: '1px solid #E2E8F0',
     borderRadius: 8,
     padding: '11px 14px',
-    color: '#F1F5F9',
+    color: '#0F172A',
     fontSize: 15,
     outline: 'none',
     width: '100%',
@@ -466,9 +467,9 @@ const styles = {
   skillTags: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   tag: {
     display: 'flex', alignItems: 'center', gap: 6,
-    background: '#0F2235',
-    border: '1px solid #1E4976',
-    color: '#7DD3FC',
+    background: '#E0F2FE',
+    border: '1px solid #0EA5E9',
+    color: '#0369A1',
     borderRadius: 20,
     padding: '4px 12px',
     fontSize: 13,
@@ -476,13 +477,13 @@ const styles = {
   },
   tagRemove: {
     background: 'none', border: 'none',
-    color: '#7DD3FC', cursor: 'pointer',
+    color: '#0369A1', cursor: 'pointer',
     padding: 0, fontSize: 16, lineHeight: 1,
   },
   popularSkills: { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12, alignItems: 'center' },
   pillBtn: {
     background: 'transparent',
-    border: '1px solid #1E293B',
+    border: '1px solid #E2E8F0',
     color: '#64748B',
     borderRadius: 20,
     padding: '3px 10px',
@@ -493,8 +494,8 @@ const styles = {
   toggleGroup: { display: 'flex', gap: 12 },
   toggleBtn: {
     flex: 1,
-    background: '#0B1120',
-    border: '2px solid #1E293B',
+    background: '#F8FAFC',
+    border: '2px solid #E2E8F0',
     color: '#64748B',
     borderRadius: 10,
     padding: '14px 20px',
@@ -506,16 +507,16 @@ const styles = {
   toggleActive: {
     border: '2px solid #0EA5E9',
     color: '#0EA5E9',
-    background: '#0F2235',
+    background: '#E0F2FE',
   },
   removeBtn: {
-    background: '#1E293B', border: 'none', borderRadius: 8,
-    color: '#94A3B8', cursor: 'pointer', padding: '0 14px',
+    background: '#E2E8F0', border: 'none', borderRadius: 8,
+    color: '#64748B', cursor: 'pointer', padding: '0 14px',
     fontSize: 16,
   },
   ghostBtn: {
     background: 'transparent',
-    border: '1px dashed #1E293B',
+    border: '1px dashed #CBD5E1',
     color: '#0EA5E9',
     borderRadius: 8,
     padding: '10px',
@@ -526,20 +527,20 @@ const styles = {
   },
   reviewGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 },
   reviewFull: { gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 4 },
-  reviewLabel: { fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em' },
-  reviewText: { color: '#CBD5E1', fontSize: 15, margin: '4px 0 0', lineHeight: 1.6 },
+  reviewLabel: { fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' },
+  reviewText: { color: '#334155', fontSize: 15, margin: '4px 0 0', lineHeight: 1.6 },
 
   nav: {
     display: 'flex',
     alignItems: 'center',
     marginTop: 36,
     paddingTop: 24,
-    borderTop: '1px solid #1E293B',
+    borderTop: '1px solid #E2E8F0',
   },
   backBtn: {
     background: 'transparent',
-    border: '1px solid #1E293B',
-    color: '#94A3B8',
+    border: '1px solid #E2E8F0',
+    color: '#475569',
     borderRadius: 8,
     padding: '12px 24px',
     cursor: 'pointer',

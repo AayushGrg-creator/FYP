@@ -13,12 +13,9 @@ import ProgressBar from '../../components/gamification/ProgressBar';
 import LevelBadge from '../../components/gamification/LevelBadge';
 import BadgeGrid from '../../components/gamification/BadgeGrid';
 import reviewService from '../../services/reviewService';
+import { getBadgeIcon } from '../../utils/badgeIcons';
 
-/* ══════════════════════════════════════════════════════════════════════
-   FreelancerDashboard.jsx
-   Light blue/white aesthetic · TaskTide brand palette
-   ══════════════════════════════════════════════════════════════════════ */
-
+// TaskTide brand theme
 const T = {
   bg:          '#F0F4FF',
   surface:     '#FFFFFF',
@@ -40,7 +37,6 @@ const T = {
   shadowMd:    '0 4px 24px rgba(29,111,235,0.12)',
 };
 
-/* ─── Real profile hook ──────────────────────────────────────────────── */
 function useRealProfile() {
   const { user } = useAuth();
   const { profile, loading, fetchProfile } = useProfile();
@@ -52,7 +48,7 @@ function useRealProfile() {
   return {
     loading,
     name: user?.name || 'Freelancer',
-trustScore: user?.trustScore ?? 0,
+    trustScore: user?.trustScore ?? 0,
     profileStrength: profile?.profileStrength ?? 0,
     bio: profile?.bio || '',
     skills: profile?.skills || [],
@@ -61,8 +57,7 @@ trustScore: user?.trustScore ?? 0,
     portfolio: profile?.portfolio || [],
     avatarUrl: profile?.avatarUrl || user?.avatarUrl || '',
     githubUrl: profile?.githubUrl || '',
-linkedinUrl: profile?.linkedinUrl || '',
-
+    linkedinUrl: profile?.linkedinUrl || '',
     completedFields: {
       avatar: !!(profile?.avatarUrl || user?.avatarUrl),
       bio: !!(profile?.bio && profile.bio.trim().length > 0),
@@ -76,7 +71,6 @@ linkedinUrl: profile?.linkedinUrl || '',
   };
 }
 
-/* ─── Real proposals hook ────────────────────────────────────────────── */
 function useMyProposals() {
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +90,7 @@ function useMyProposals() {
       const list = Array.isArray(data) ? data : (data?.proposals || data?.data || []);
       if (isMountedRef.current) setProposals(list);
     } catch (err) {
-      if (isMountedRef.current) setError(err.message || 'Failed to load proposals.');
+      if (isMountedRef.current) setError(err.message || 'Something went wrong while loading your proposals.');
     } finally {
       if (isMountedRef.current) setLoading(false);
     }
@@ -106,12 +100,8 @@ function useMyProposals() {
 
   return { proposals, loading, error, reload: load };
 }
-/* ─── Real matches hook ──────────────────────────────────────────────────
-   Pulls actual job matches from the TF-IDF matching engine via
-   GET /api/match/my-matches. Response shape not fully confirmed against
-   the live controller, so this defensively handles several possible
-   envelope shapes rather than assuming one.
-   ──────────────────────────────────────────────────────────────────── */
+
+// Pulls job matches from the matching engine
 function useRealMatches() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -131,10 +121,7 @@ function useRealMatches() {
   return { matches, loading };
 }
 
-/* ─── Real rating summary hook — client → freelancer reviews ──────────
-   Pulls the freelancer's own aggregated rating from GET /reviews/my-summary,
-   which review.controller.js recalculates live from the Review collection.
-   ──────────────────────────────────────────────────────────────────── */
+// Freelancer's aggregated rating, recalculated server-side from the Review collection
 function useRatingSummary() {
   const [summary, setSummary] = useState({ avgRating: 0, ratingCount: 0 });
   const [loading, setLoading] = useState(true);
@@ -149,7 +136,6 @@ function useRatingSummary() {
   return { ...summary, loading };
 }
 
-/* ─── Atoms ──────────────────────────────────────────────────────────── */
 function SectionLabel({ children, tag }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
@@ -210,21 +196,20 @@ function AnimatedNumber({ value, prefix = '', suffix = '', duration = 1200 }) {
   return <span>{prefix}{display.toLocaleString()}{suffix}</span>;
 }
 
-function StatCard({ label, value, prefix = '', suffix = '', colour = T.brand, icon, comingSoon }) {
+function StatCard({ label, value, prefix = '', suffix = '', colour = T.textPrimary, comingSoon }) {
   return (
     <Card style={{ position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: colour, borderRadius: '14px 14px 0 0' }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4 }}>
-        <span style={{ fontSize: 20 }}>{icon}</span>
-        {comingSoon && (
+      {comingSoon && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
           <span style={{
             fontFamily: "'DM Mono', monospace", fontSize: 9, color: T.textMuted, background: T.surfaceAlt,
             padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.06em',
           }}>
-            Soon
+            Coming soon
           </span>
-        )}
-      </div>
+        </div>
+      )}
       <div style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: 34, color: comingSoon ? T.textMuted : colour, lineHeight: 1, marginTop: 10 }}>
         <AnimatedNumber value={value} prefix={prefix} suffix={suffix} />
       </div>
@@ -247,10 +232,9 @@ function SkillChip({ skill }) {
   );
 }
 
-function EmptyState({ icon, title, subtitle, actionLabel, onAction }) {
+function EmptyState({ title, subtitle, actionLabel, onAction }) {
   return (
     <div style={{ textAlign: 'center', padding: '48px 24px', color: T.textMuted }}>
-      <div style={{ fontSize: 36, marginBottom: 10 }}>{icon}</div>
       <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 14, fontWeight: 600, color: T.textSecond, marginBottom: 4 }}>
         {title}
       </div>
@@ -270,7 +254,6 @@ function EmptyState({ icon, title, subtitle, actionLabel, onAction }) {
   );
 }
 
-/* ─── ProposalStatusBadge ────────────────────────────────────────────── */
 function ProposalStatusBadge({ status }) {
   const MAP = {
     pending:   { bg: '#FEF3C7', color: '#B45309', label: 'Pending' },
@@ -290,7 +273,6 @@ function ProposalStatusBadge({ status }) {
   );
 }
 
-/* ─── ProposalRow ────────────────────────────────────────────────────── */
 function ProposalRow({ proposal }) {
   const jobTitle = proposal.job?.title || 'Job listing';
   return (
@@ -314,10 +296,10 @@ function ProposalRow({ proposal }) {
   );
 }
 
-/* ─── ActiveJobRow — accepted proposal whose job is in_progress/completed ── */
+// Accepted proposal whose job is in_progress or completed
 function ActiveJobRow({ proposal, onMarkComplete, completing }) {
   const job = proposal.job || {};
-  const jobStatus = job.status; // 'in_progress' | 'completed'
+  const jobStatus = job.status;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: `1px solid ${T.border}`, gap: 16 }}>
@@ -349,7 +331,7 @@ function ActiveJobRow({ proposal, onMarkComplete, completing }) {
               cursor: completing ? 'not-allowed' : 'pointer', opacity: completing ? 0.6 : 1, whiteSpace: 'nowrap',
             }}
           >
-            {completing ? 'Saving…' : '✓ Mark Complete'}
+            {completing ? 'Saving…' : 'Mark Complete'}
           </button>
         )}
       </div>
@@ -357,7 +339,7 @@ function ActiveJobRow({ proposal, onMarkComplete, completing }) {
   );
 }
 
-/* ─── ActiveWorkspaceRow — accepted Project shared with a client ─────── */
+// Accepted Project shared with a client
 function ActiveWorkspaceRow({ project }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: `1px solid ${T.border}`, gap: 16 }}>
@@ -377,13 +359,12 @@ function ActiveWorkspaceRow({ project }) {
           cursor: 'pointer', whiteSpace: 'nowrap',
         }}
       >
-        Open →
+        Open workspace
       </button>
     </div>
   );
 }
 
-/* ─── MatchCard ──────────────────────────────────────────────────────── */
 function MatchCard({ match, onView }) {
   const percent = Math.round((match.matchPercent ?? match.score ?? 0));
   return (
@@ -426,7 +407,6 @@ function MatchCard({ match, onView }) {
   );
 }
 
-/* ─── Main dashboard ─────────────────────────────────────────────────── */
 export default function FreelancerDashboard() {
   const { logout } = useAuth();
   const profile = useRealProfile();
@@ -439,37 +419,28 @@ export default function FreelancerDashboard() {
     loading: gamificationLoading,
     error: gamificationError,
   } = useGamification();
-  const { avgRating, ratingCount, loading: ratingLoading } = useRatingSummary();
+  const { avgRating, loading: ratingLoading } = useRatingSummary();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [completingId, setCompletingId] = useState(null);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
-
-  // ── Active workspaces (Projects) for this freelancer ────────────────────
   const [projects, setProjects] = useState([]);
 
   useEffect(() => {
     projectService.getMine().then((res) => setProjects(res.projects || [])).catch(() => {});
   }, []);
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   const tabs = ['overview', 'proposals', 'matches', 'badges'];
   const earnedBadgeCount = myBadges?.length || 0;
 
-  // ── Real Performance Overview stats, derived from `projects` ───────────
-  // ASSUMPTION (not independently verified against Project.js's schema this
-  // session): completed = project.status === 'completed', everything else
-  // counts as active. If your actual status enum uses different values
-  // (e.g. 'in_progress' as the "active" state instead of a catch-all),
-  // adjust the filters below accordingly.
   const completedProjectsCount = projects.filter((p) => p.status === 'completed').length;
   const activeProjectsCount = projects.filter((p) => p.status !== 'completed').length;
   const totalEarnings = projects.reduce((sum, p) => sum + (p.amountReleased || 0), 0);
 
-  // Accepted proposals whose job is actively being worked on or finished.
   const activeJobs = proposals.filter(
     (p) => p.status === 'accepted' && ['in_progress', 'completed'].includes(p.job?.status)
   );
@@ -506,29 +477,38 @@ export default function FreelancerDashboard() {
         ::-webkit-scrollbar-thumb { background: ${T.borderStrong}; border-radius: 3px; }
       `}</style>
 
-      {/* ── Top bar ──────────────────────────────────────────────────── */}
       <div style={{
         padding: '0 40px', height: 60, borderBottom: `1px solid ${T.border}`,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         background: T.surface, boxShadow: T.shadow, position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <div style={{ fontFamily: "'Sora', sans-serif", fontSize: 20, fontWeight: 700, color: T.textPrimary }}>
-          Task <span style={{ color: T.brand }}>Tide</span>
+        <div
+          onClick={() => navigate('/')}
+          style={{
+            display: 'flex', alignItems: 'center', fontFamily: "'Sora', sans-serif",
+            fontSize: 20, fontWeight: 700, color: T.textPrimary, cursor: 'pointer'
+          }}
+        >
+          <img
+            src="/logo.png"
+            alt="TaskTide Logo"
+            style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+          />
         </div>
 
         <div style={{ display: 'flex', gap: 4 }}>
           <button
-    onClick={() => navigate('/jobs')}
-    style={{
-      padding: '7px 18px', background: 'transparent',
-      border: `1px solid ${T.border}`, borderRadius: 6,
-      color: T.textSecond, fontFamily: "'DM Mono', monospace",
-      fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em',
-      cursor: 'pointer', transition: 'all 0.15s',
-    }}
-  >
-    Browse Jobs
-  </button>
+            onClick={() => navigate('/jobs')}
+            style={{
+              padding: '7px 18px', background: 'transparent',
+              border: `1px solid ${T.border}`, borderRadius: 6,
+              color: T.textSecond, fontFamily: "'DM Mono', monospace",
+              fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            Browse Jobs
+          </button>
           {tabs.map((t) => (
             <button
               key={t}
@@ -571,7 +551,7 @@ export default function FreelancerDashboard() {
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{profile.name}</div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: T.textMuted }}>
-                {profile.skills.length > 0 ? profile.skills.slice(0, 2).join(', ') : 'Complete your profile →'}
+                {profile.skills.length > 0 ? profile.skills.slice(0, 2).join(', ') : 'Complete your profile'}
               </div>
             </div>
           </div>
@@ -590,7 +570,6 @@ export default function FreelancerDashboard() {
         </div>
       </div>
 
-      {/* ── Body ─────────────────────────────────────────────────────── */}
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '36px 40px' }}>
 
         {activeTab === 'overview' && (
@@ -608,7 +587,7 @@ export default function FreelancerDashboard() {
               <Card style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} highlight>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>Your profile is {profile.profileStrength}% complete</div>
-                  <div style={{ fontSize: 12, color: T.textSecond }}>A complete profile gets more job matches from the matching engine.</div>
+                  <div style={{ fontSize: 12, color: T.textSecond }}>A complete profile improves your chances of getting matched with relevant jobs.</div>
                 </div>
                 <button
                   onClick={() => navigate('/profile/edit')}
@@ -622,7 +601,6 @@ export default function FreelancerDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-                {/* ── Level & Points (real, from gamification system) ── */}
                 <Card>
                   <SectionLabel>Level &amp; Points</SectionLabel>
                   {gamificationLoading ? (
@@ -650,14 +628,13 @@ export default function FreelancerDashboard() {
                 <div>
                   <SectionLabel>Performance Overview</SectionLabel>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                    <StatCard label="Completed" value={completedProjectsCount} icon="" suffix=" jobs" colour={T.success} />
-                    <StatCard label="Active"     value={activeProjectsCount}   icon="" colour={T.accent} />
-                    <StatCard label="Earnings (NPR)" value={totalEarnings}     icon="" colour={T.brand} prefix="₨" />
-                    <StatCard label="Avg Rating" value={ratingLoading ? 0 : Math.round(avgRating * 20)}   icon="" suffix="%" colour={T.pink} />
+                    <StatCard label="Completed" value={completedProjectsCount} suffix=" jobs" colour={T.textPrimary} />
+                    <StatCard label="Active" value={activeProjectsCount} colour={T.textPrimary} />
+                    <StatCard label="Earnings (NPR)" value={totalEarnings} colour={T.textPrimary} prefix="₨" />
+                    <StatCard label="Avg Rating" value={ratingLoading ? 0 : Math.round(avgRating * 20)} suffix="%" colour={T.textPrimary} />
                   </div>
                 </div>
 
-                {/* ── Active Workspaces (Projects) ── */}
                 {projects.length > 0 && (
                   <div>
                     <SectionLabel>Active Workspaces</SectionLabel>
@@ -674,7 +651,7 @@ export default function FreelancerDashboard() {
                   {profile.bio ? (
                     <p style={{ fontSize: 13, color: T.textSecond, lineHeight: 1.6, margin: 0 }}>{profile.bio}</p>
                   ) : (
-                    <p style={{ fontSize: 13, color: T.textMuted, fontStyle: 'italic', margin: 0 }}>No bio yet — add one so clients know what you do.</p>
+                    <p style={{ fontSize: 13, color: T.textMuted, fontStyle: 'italic', margin: 0 }}>Add a bio so clients can learn more about you.</p>
                   )}
 
                   <div style={{ marginTop: 16 }}>
@@ -711,7 +688,7 @@ export default function FreelancerDashboard() {
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                             <span style={{ fontFamily: "'Sora', sans-serif", fontWeight: 700, fontSize: 14, color: T.textPrimary }}>{item.title}</span>
                             {item.url && (
-                              <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: T.brand, fontFamily: "'DM Mono', monospace" }}>View →</a>
+                              <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: T.brand, fontFamily: "'DM Mono', monospace" }}>View</a>
                             )}
                           </div>
                           {item.description && <p style={{ fontSize: 13, color: T.textSecond, lineHeight: 1.5, margin: '4px 0' }}>{item.description}</p>}
@@ -729,9 +706,9 @@ export default function FreelancerDashboard() {
                 )}
 
                 <div>
-                  <SectionLabel>Top Job Matches</SectionLabel>
+                  <SectionLabel>Job Matches</SectionLabel>
                   {matchesLoading ? (
-                    <Card><div style={{ textAlign: 'center', padding: '24px', color: T.textMuted, fontSize: 13 }}>Finding your best-fit jobs…</div></Card>
+                    <Card><div style={{ textAlign: 'center', padding: '24px', color: T.textMuted, fontSize: 13 }}>Loading job matches…</div></Card>
                   ) : matches.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {matches.slice(0, 3).map((m) => (
@@ -740,7 +717,7 @@ export default function FreelancerDashboard() {
                     </div>
                   ) : (
                     <Card>
-                      <EmptyState icon="🔍" title="No matches yet" subtitle="Complete your profile with skills to start getting matched to relevant jobs." actionLabel="Complete Profile" onAction={() => navigate('/profile/edit')} />
+                      <EmptyState title="No job matches yet" subtitle="Add skills to your profile to start seeing jobs that fit what you do." actionLabel="Complete Profile" onAction={() => navigate('/profile/edit')} />
                     </Card>
                   )}
                 </div>
@@ -753,7 +730,7 @@ export default function FreelancerDashboard() {
                     <TrustScoreBadge score={profile.trustScore} size={140} />
                   </div>
                   <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: T.textMuted, textAlign: 'center', lineHeight: 1.6 }}>
-                    Starts at 100 · full breakdown (completion, rating,<br />response, disputes, badges) activates with Reputation Engine
+                    Your score starts at 100 and adjusts over time based on your profile completeness, ratings, response time, and reliability.
                   </div>
                 </Card>
 
@@ -778,14 +755,13 @@ export default function FreelancerDashboard() {
                       ))}
                       {proposals.length > 3 && (
                         <button onClick={() => setActiveTab('proposals')} style={{ background: 'none', border: 'none', color: T.brand, fontSize: 11, cursor: 'pointer', padding: 0, textAlign: 'left' }}>
-                          View all {proposals.length} →
+                          View all {proposals.length}
                         </button>
                       )}
                     </div>
                   )}
                 </Card>
 
-                {/* ── Earned Badges (real, from gamification system) ── */}
                 <Card>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                     <SectionLabel>Earned Badges</SectionLabel>
@@ -794,7 +770,7 @@ export default function FreelancerDashboard() {
                         onClick={() => setActiveTab('badges')}
                         style={{ background: 'none', border: 'none', color: T.brand, fontSize: 11, cursor: 'pointer', padding: 0, marginBottom: 14 }}
                       >
-                        View all →
+                        View all
                       </button>
                     )}
                   </div>
@@ -803,18 +779,27 @@ export default function FreelancerDashboard() {
                   ) : gamificationError ? (
                     <div style={{ fontSize: 12, color: T.danger }}>{gamificationError}</div>
                   ) : earnedBadgeCount === 0 ? (
-                    <div style={{ fontSize: 12, color: T.textMuted }}>No badges earned yet — complete milestones and projects to start unlocking achievements.</div>
+                    <div style={{ fontSize: 12, color: T.textMuted }}>No badges earned yet. Complete projects and milestones to start earning achievements.</div>
                   ) : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {myBadges.slice(0, 6).map((ub) => (
-                        <span
-                          key={ub._id}
-                          title={ub.badge?.name}
-                          style={{ fontSize: 26, lineHeight: 1 }}
-                        >
-                          {ub.badge?.icon || '🏅'}
-                        </span>
-                      ))}
+                      {myBadges.slice(0, 6).map((ub) => {
+                        const IconComponent = getBadgeIcon(ub.badge?.icon);
+                        return (
+                          <span
+                            key={ub._id}
+                            title={ub.badge?.name}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 26,
+                              height: 26,
+                            }}
+                          >
+                            <IconComponent size={22} strokeWidth={1.75} color={ub.badge?.colour || T.warning} />
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                 </Card>
@@ -866,7 +851,7 @@ export default function FreelancerDashboard() {
               ) : proposalsError ? (
                 <div style={{ padding: '24px 0', textAlign: 'center', color: T.danger, fontSize: 13 }}>{proposalsError}</div>
               ) : proposals.length === 0 ? (
-                <EmptyState icon="📬" title="No proposals submitted yet" subtitle="Browse open jobs and submit a proposal to get started." actionLabel="Browse Jobs" onAction={() => navigate('/jobs')} />
+                <EmptyState title="No proposals submitted yet" subtitle="Browse open jobs and submit a proposal to get started." actionLabel="Browse Jobs" onAction={() => navigate('/jobs')} />
               ) : (
                 <div>
                   {proposals.map((p) => <ProposalRow key={p._id} proposal={p} />)}
@@ -879,13 +864,13 @@ export default function FreelancerDashboard() {
         {activeTab === 'matches' && (
           <>
             <div style={{ marginBottom: 28 }}>
-              <SectionLabel>AI-Powered Job Matches</SectionLabel>
+              <SectionLabel>Job Matches</SectionLabel>
               <h2 style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: 40, margin: 0, color: T.textPrimary }}>
                 Recommended <span style={{ color: T.brand }}>For You</span>
               </h2>
             </div>
             {matchesLoading ? (
-              <Card><div style={{ textAlign: 'center', padding: '24px', color: T.textMuted, fontSize: 13 }}>Finding your best-fit jobs…</div></Card>
+              <Card><div style={{ textAlign: 'center', padding: '24px', color: T.textMuted, fontSize: 13 }}>Loading job matches…</div></Card>
             ) : matches.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
                 {matches.map((m) => (
@@ -894,7 +879,7 @@ export default function FreelancerDashboard() {
               </div>
             ) : (
               <Card>
-                <EmptyState icon="🧠" title="No matches yet" subtitle="This uses TF-IDF cosine similarity to compare your skills against open jobs. Complete your profile to see results." actionLabel="Complete Profile" onAction={() => navigate('/profile/edit')} />
+                <EmptyState title="No job matches yet" subtitle="We compare your skills against open jobs to find good fits. Complete your profile to start seeing results." actionLabel="Complete Profile" onAction={() => navigate('/profile/edit')} />
               </Card>
             )}
           </>
@@ -903,7 +888,7 @@ export default function FreelancerDashboard() {
         {activeTab === 'badges' && (
           <>
             <div style={{ marginBottom: 28 }}>
-              <SectionLabel>Achievement System</SectionLabel>
+              <SectionLabel>Achievements</SectionLabel>
               <h2 style={{ fontFamily: "'Bebas Neue', Impact, sans-serif", fontSize: 40, margin: 0, color: T.textPrimary }}>
                 Your <span style={{ color: T.brand }}>Badges</span>
               </h2>
@@ -943,7 +928,7 @@ export default function FreelancerDashboard() {
               </Card>
             ) : allBadges.length === 0 ? (
               <Card>
-                <EmptyState icon="🏆" title="Badge catalogue not loaded" subtitle="If this persists, the badge catalogue may not be seeded yet — contact support." />
+                <EmptyState title="Badges unavailable" subtitle="We couldn't load the badge list right now. Please try again later." />
               </Card>
             ) : (
               <Card>

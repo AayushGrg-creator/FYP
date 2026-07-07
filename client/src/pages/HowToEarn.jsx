@@ -5,7 +5,11 @@ export default function HowToEarn() {
   return (
     <div className={styles.page}>
       <nav className={styles.navbar}>
-        <Link to="/" className={styles.logo}>Task<span>Tide</span></Link>
+        <img
+    src="/logo.png"
+    alt="TaskTide Logo"
+    style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+  />
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
           <Link to="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -59,32 +63,32 @@ export default function HowToEarn() {
 
         <div className={styles.cardsGrid}>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🎨</span>
+            <span className={styles.cardIcon}></span>
             <h3>Design & Creative</h3>
             <p>Logo design, UI/UX, illustration, branding, social media graphics, and more.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>💻</span>
+            <span className={styles.cardIcon}></span>
             <h3>Development</h3>
             <p>Web apps, mobile apps, APIs, e-commerce stores, WordPress, and full-stack projects.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>✍️</span>
+            <span className={styles.cardIcon}></span>
             <h3>Writing & Copy</h3>
             <p>Blog posts, SEO content, copywriting, technical writing, and proofreading.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>📱</span>
+            <span className={styles.cardIcon}></span>
             <h3>Digital Marketing</h3>
             <p>SEO, social media management, PPC ads, email campaigns, and analytics.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🎬</span>
+            <span className={styles.cardIcon}></span>
             <h3>Video & Animation</h3>
             <p>Video editing, motion graphics, explainer videos, and YouTube content.</p>
           </div>
           <div className={styles.card}>
-            <span className={styles.cardIcon}>🤖</span>
+            <span className={styles.cardIcon}></span>
             <h3>AI Services</h3>
             <p>Prompt engineering, AI model fine-tuning, chatbot development, and automation.</p>
           </div>
@@ -101,7 +105,7 @@ export default function HowToEarn() {
               <li><span className={styles.check}>✓</span> Instant withdrawal to Khalti or bank account</li>
             </ul>
           </div>
-          <div className={styles.twoColVisual}>💸<br /><br /><strong style={{fontSize:'1rem', color:'#0ea5e9'}}>Keep more of every dollar you earn</strong></div>
+          
         </div>
 
         <div className={styles.ctaBox}>

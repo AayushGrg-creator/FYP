@@ -77,7 +77,7 @@ export default function JobDetailPage() {
                 <div style={styles.proposalSection}>
                   {!showForm ? (
                     <button style={styles.applyBtn} onClick={() => setShowForm(true)}>
-                      ✍ Submit a Proposal
+                       Submit a Proposal
                     </button>
                   ) : (
                     <ProposalForm
@@ -133,8 +133,8 @@ export default function JobDetailPage() {
               <div style={styles.sideCard}>
                 <div style={styles.sideLabel}>Manage</div>
                 <div style={styles.manageLinks}>
-                  <Link to={`/jobs/${id}/edit`} style={styles.manageLink}>✏ Edit Job</Link>
-                  <Link to={`/jobs/${id}/proposals`} style={styles.manageLink}>📋 View Proposals</Link>
+                  <Link to={`/jobs/${id}/edit`} style={styles.manageLink}> Edit Job</Link>
+                  <Link to={`/jobs/${id}/proposals`} style={styles.manageLink}> View Proposals</Link>
                 </div>
               </div>
             )}
@@ -228,7 +228,7 @@ function ProposalForm({ jobId, onSuccess, onCancel }) {
             style={{ ...styles.submitBtn, opacity: loading ? 0.7 : 1 }}
             disabled={loading}
           >
-            {loading ? 'Submitting…' : '🚀 Submit Proposal'}
+            {loading ? 'Submitting…' : ' Submit Proposal'}
           </button>
         </div>
       </form>
@@ -281,7 +281,7 @@ function ErrorState({ message }) {
   return (
     <div style={{ ...styles.page, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 48 }}>⚠️</div>
+        <div style={{ fontSize: 48 }}></div>
         <p style={{ color: '#94A3B8' }}>{message}</p>
         <Link to="/jobs" style={{ color: '#0EA5E9', textDecoration: 'none' }}>← Back to jobs</Link>
       </div>
@@ -297,29 +297,29 @@ function getTimeAgo(date) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
-  page: { minHeight: '100vh', background: '#0B1120', fontFamily: "'DM Sans', sans-serif", padding: '32px 24px 80px' },
+  page: { minHeight: '100vh', background: '#F8FAFC', fontFamily: "'DM Sans', sans-serif", padding: '32px 24px 80px' },
   inner: { maxWidth: 1060, margin: '0 auto' },
   back: { color: '#64748B', fontSize: 14, textDecoration: 'none', display: 'inline-block', marginBottom: 24 },
   layout: { display: 'flex', gap: 24, alignItems: 'flex-start' },
   main: { flex: 1, minWidth: 0 },
-  card: { background: '#111827', border: '1px solid #1E293B', borderRadius: 16, padding: '32px 36px' },
+  card: { background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 16, padding: '32px 36px', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)' },
   topRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  timeAgo: { color: '#475569', fontSize: 13 },
-  title: { margin: '0 0 20px', color: '#F1F5F9', fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.3 },
+  timeAgo: { color: '#94A3B8', fontSize: 13 },
+  title: { margin: '0 0 20px', color: '#0F172A', fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.3 },
   metaRow: { display: 'flex', flexWrap: 'wrap', gap: 16 },
   metaItem: { display: 'flex', flexDirection: 'column', gap: 2 },
-  metaLabel: { color: '#475569', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' },
-  metaValue: { color: '#CBD5E1', fontSize: 14, fontWeight: 500, textTransform: 'capitalize' },
-  sectionTitle: { color: '#E2E8F0', fontSize: 15, fontWeight: 700, margin: '0 0 12px', letterSpacing: '0.01em' },
-  desc: { color: '#94A3B8', fontSize: 15, lineHeight: 1.75, margin: 0 },
+  metaLabel: { color: '#94A3B8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' },
+  metaValue: { color: '#334155', fontSize: 14, fontWeight: 500, textTransform: 'capitalize' },
+  sectionTitle: { color: '#1E293B', fontSize: 15, fontWeight: 700, margin: '0 0 12px', letterSpacing: '0.01em' },
+  desc: { color: '#64748B', fontSize: 15, lineHeight: 1.75, margin: 0 },
   list: { margin: '0', paddingLeft: 20 },
-  listItem: { color: '#94A3B8', fontSize: 15, lineHeight: 1.7, marginBottom: 4 },
+  listItem: { color: '#64748B', fontSize: 15, lineHeight: 1.7, marginBottom: 4 },
   skillRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
   skillPill: {
-    background: '#0F2235', border: '1px solid #1E4976', color: '#7DD3FC',
+    background: '#E0F2FE', border: '1px solid #0EA5E9', color: '#0369A1',
     borderRadius: 20, padding: '5px 14px', fontSize: 13, fontWeight: 500,
   },
-  proposalSection: { marginTop: 32, paddingTop: 28, borderTop: '1px solid #1E293B' },
+  proposalSection: { marginTop: 32, paddingTop: 28, borderTop: '1px solid #E2E8F0' },
   applyBtn: {
     background: 'linear-gradient(135deg, #0EA5E9, #0284C7)',
     border: 'none', color: '#fff', borderRadius: 10,
@@ -331,26 +331,26 @@ const styles = {
   loginLink: { color: '#0EA5E9', textDecoration: 'none' },
 
   // Form
-  formCard: { background: '#0B1120', border: '1px solid #1E293B', borderRadius: 14, padding: '28px 24px' },
-  formTitle: { margin: '0 0 20px', color: '#F1F5F9', fontSize: 18, fontWeight: 700 },
-  formError: { background: '#450A0A', border: '1px solid #7F1D1D', color: '#FCA5A5', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 14 },
+  formCard: { background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: '28px 24px' },
+  formTitle: { margin: '0 0 20px', color: '#0F172A', fontSize: 18, fontWeight: 700 },
+  formError: { background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#B91C1C', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 14 },
   formField: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1 },
-  formLabel: { color: '#CBD5E1', fontSize: 14, fontWeight: 600 },
+  formLabel: { color: '#334155', fontSize: 14, fontWeight: 600 },
   formInput: {
-    background: '#111827', border: '1px solid #1E293B', borderRadius: 8,
-    padding: '11px 14px', color: '#F1F5F9', fontSize: 15, outline: 'none',
+    background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 8,
+    padding: '11px 14px', color: '#0F172A', fontSize: 15, outline: 'none',
     fontFamily: 'inherit', resize: 'vertical',
   },
   formInputSm: {
-    background: '#111827', border: '1px solid #1E293B', borderRadius: 8,
-    padding: '11px 14px', color: '#F1F5F9', fontSize: 15, outline: 'none',
+    background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 8,
+    padding: '11px 14px', color: '#0F172A', fontSize: 15, outline: 'none',
     fontFamily: 'inherit', width: '100%', boxSizing: 'border-box',
   },
-  formHint: { color: '#475569', fontSize: 11 },
+  formHint: { color: '#94A3B8', fontSize: 11 },
   formRow: { display: 'flex', gap: 16 },
   formActions: { display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 },
   cancelBtn: {
-    background: 'transparent', border: '1px solid #1E293B', color: '#64748B',
+    background: 'transparent', border: '1px solid #E2E8F0', color: '#64748B',
     borderRadius: 8, padding: '12px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 600,
   },
   submitBtn: {
@@ -361,16 +361,16 @@ const styles = {
 
   // Sidebar
   sidebar: { width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 },
-  sideCard: { background: '#111827', border: '1px solid #1E293B', borderRadius: 14, padding: '20px' },
-  sideLabel: { color: '#475569', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 },
+  sideCard: { background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 14, padding: '20px', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)' },
+  sideLabel: { color: '#94A3B8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 },
   budgetDisplay: { color: '#0EA5E9', fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' },
-  budgetType: { color: '#475569', fontSize: 13, marginTop: 4, textTransform: 'capitalize' },
+  budgetType: { color: '#94A3B8', fontSize: 13, marginTop: 4, textTransform: 'capitalize' },
   clientRow: { display: 'flex', gap: 12, alignItems: 'center' },
-  avatar: { width: 44, height: 44, borderRadius: '50%', background: '#0F2235', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 44, height: 44, borderRadius: '50%', background: '#E0F2FE', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
   avatarInitial: { color: '#0EA5E9', fontWeight: 700, fontSize: 18 },
-  clientName: { color: '#E2E8F0', fontWeight: 600, fontSize: 15 },
-  clientSub: { color: '#475569', fontSize: 12 },
+  clientName: { color: '#1E293B', fontWeight: 600, fontSize: 15 },
+  clientSub: { color: '#94A3B8', fontSize: 12 },
   manageLinks: { display: 'flex', flexDirection: 'column', gap: 8 },
   manageLink: { color: '#0EA5E9', fontSize: 14, fontWeight: 500, textDecoration: 'none' },
 };

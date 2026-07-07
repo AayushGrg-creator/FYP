@@ -161,10 +161,14 @@ export default function ClientDashboard() {
   return (
     <div style={styles.page}>
       {/* Top bar — matches FreelancerDashboard.jsx, uses real ClientProfile avatar */}
-      <div style={styles.topBar}>
-        <div style={styles.logo}>
-          Task <span style={{ color: T.brand }}>Tide</span>
-        </div>
+     <div style={styles.topBar}>
+   <Link to="/">
+     <img
+      src="/logo.png"
+      alt="TaskTide Logo"
+      style={{ height: '55px', width: 'auto', objectFit: 'contain', marginRight: '8px' }}
+    />
+   </Link>
         <div style={styles.topBarRight}>
           <div
             onClick={() => navigate('/profile/edit')}
@@ -448,11 +452,13 @@ export default function ClientDashboard() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-function StatCard({ label, value, accent, icon }) {
+function StatCard({ label, value, icon }) {
   return (
-    <div style={{ ...styles.statCard, borderColor: accent + '33' }}>
+    <div style={styles.statCard}>
       <div style={styles.statIcon}>{icon}</div>
-      <div style={{ ...styles.statValue, color: accent }}>{value ?? 0}</div>
+      <div style={{ ...styles.statValue, color: '#000' }}>
+        {value ?? 0}
+      </div>
       <div style={styles.statLabel}>{label}</div>
     </div>
   );

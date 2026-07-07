@@ -28,6 +28,7 @@ export default function Navbar() {
         
         {/* ── Brand Layout Left Segment ── */}
         <Link to="/" style={styles.logoLink}>
+          <img src="/logo.png" alt="TaskTide logo" style={styles.logoImg} />
           <div style={styles.brand}>
             Task <span style={styles.brandAccent}>Tide</span>
           </div>
@@ -151,6 +152,14 @@ const styles = {
   },
   logoLink: {
     textDecoration: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  logoImg: {
+    height: '32px',
+    width: 'auto',
+    display: 'block',
   },
   brand: {
     fontSize: '24px',

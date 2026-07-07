@@ -157,7 +157,7 @@ export default function JobForm({ onSubmit, initialData = {}, isSubmitting = fal
                   onClick={() => set('budgetType', t)}
                   disabled={isSubmitting}
                 >
-                  {t === 'fixed' ? '💼 Fixed Price' : '⏳ Hourly Rate'}
+                  {t === 'fixed' ? ' Fixed Price' : ' Hourly Rate'}
                 </button>
               );
             })}
@@ -269,8 +269,8 @@ export default function JobForm({ onSubmit, initialData = {}, isSubmitting = fal
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
   form: {
-    background: '#111827',
-    border: '1px solid #1E293B',
+    background: '#FFFFFF',
+    border: '1px solid #E2E8F0',
     borderRadius: 14,
     padding: '32px',
     maxWidth: '720px',
@@ -280,18 +280,19 @@ const styles = {
     flexDirection: 'column',
     fontFamily: "'DM Sans', system-ui, sans-serif",
     boxSizing: 'border-box',
+    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
   },
   formTitle: {
     margin: '0 0 24px 0',
     fontSize: '22px',
     fontWeight: 800,
-    color: '#F1F5F9',
+    color: '#0F172A',
     letterSpacing: '-0.02em',
   },
   errorBanner: {
-    background: '#7F1D1D',
-    border: '1px solid #F87171',
-    color: '#FCA5A5',
+    background: '#FEF2F2',
+    border: '1px solid #FCA5A5',
+    color: '#B91C1C',
     padding: '12px 16px',
     borderRadius: '8px',
     fontSize: '14px',
@@ -310,18 +311,18 @@ const styles = {
     flexWrap: 'wrap',
   },
   label: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontSize: '12px',
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
   },
   input: {
-    background: '#0B1120',
-    border: '1px solid #1E293B',
+    background: '#F8FAFC',
+    border: '1px solid #E2E8F0',
     borderRadius: 8,
     padding: '12px 14px',
-    color: '#F1F5F9',
+    color: '#0F172A',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
@@ -329,11 +330,11 @@ const styles = {
     transition: 'border-color 0.15s ease',
   },
   select: {
-    background: '#0B1120',
-    border: '1px solid #1E293B',
+    background: '#F8FAFC',
+    border: '1px solid #E2E8F0',
     borderRadius: 8,
     padding: '12px 14px',
-    color: '#F1F5F9',
+    color: '#0F172A',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
@@ -341,15 +342,15 @@ const styles = {
     cursor: 'pointer',
   },
   option: {
-    background: '#111827',
-    color: '#F1F5F9',
+    background: '#FFFFFF',
+    color: '#0F172A',
   },
   textarea: {
-    background: '#0B1120',
-    border: '1px solid #1E293B',
+    background: '#F8FAFC',
+    border: '1px solid #E2E8F0',
     borderRadius: 8,
     padding: '12px 14px',
-    color: '#F1F5F9',
+    color: '#0F172A',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
@@ -363,8 +364,8 @@ const styles = {
   },
   toggleBtn: {
     flex: 1,
-    background: '#0B1120',
-    border: '1px solid #1E293B',
+    background: '#F8FAFC',
+    border: '1px solid #E2E8F0',
     color: '#64748B',
     borderRadius: 8,
     padding: '11px 0',
@@ -375,7 +376,7 @@ const styles = {
     transition: 'all 0.15s ease',
   },
   toggleActive: {
-    background: '#0F2235',
+    background: '#E0F2FE',
     border: '1px solid #0EA5E9',
     color: '#0EA5E9',
   },
@@ -384,9 +385,9 @@ const styles = {
     gap: 10,
   },
   addTagBtn: {
-    background: '#1E293B',
-    color: '#F1F5F9',
-    border: '1px solid #334155',
+    background: '#0F172A',
+    color: '#FFFFFF',
+    border: '1px solid #0F172A',
     borderRadius: 8,
     padding: '0 20px',
     fontSize: '14px',
@@ -400,15 +401,15 @@ const styles = {
     flexWrap: 'wrap',
     gap: 8,
     marginTop: 10,
-    background: '#0B1120',
+    background: '#F8FAFC',
     padding: '12px',
     borderRadius: '8px',
-    border: '1px solid #1E293B',
+    border: '1px solid #E2E8F0',
   },
   tagBadge: {
-    background: '#0F2235',
+    background: '#E0F2FE',
     border: '1px solid #0EA5E9',
-    color: '#7DD3FC',
+    color: '#0369A1',
     padding: '4px 8px 4px 12px',
     borderRadius: '20px',
     fontSize: '12px',
@@ -420,7 +421,7 @@ const styles = {
   removeTagBtn: {
     background: 'none',
     border: 'none',
-    color: '#38BDF8',
+    color: '#0EA5E9',
     cursor: 'pointer',
     fontSize: '16px',
     fontWeight: 700,
@@ -441,8 +442,8 @@ const styles = {
     transition: 'background 0.15s ease',
   },
   submitDisabled: {
-    background: '#1E293B',
-    color: '#64748B',
+    background: '#E2E8F0',
+    color: '#94A3B8',
     cursor: 'not-allowed',
   }
 };

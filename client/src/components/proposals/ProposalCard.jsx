@@ -47,7 +47,7 @@ export default function ProposalCard({ proposalData, onAccept, onReject, isProce
             {avatarUrl ? (
               <img src={avatarUrl} alt={freelancerName} style={styles.avatar} />
             ) : (
-              <span style={styles.avatarPlaceholder}>👤</span>
+              <span style={styles.avatarPlaceholder}></span>
             )}
           </div>
           <div style={styles.metaData}>
