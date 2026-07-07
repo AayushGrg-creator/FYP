@@ -2,6 +2,13 @@
 
 A modern freelancing platform with intelligent job matching, secure escrow payments, and gamification features.
 
+## Live Demo
+
+- **Frontend**: [https://fyp-7iig.vercel.app](https://fyp-7iig.vercel.app)
+- **Backend API**: [https://tasktide-api-tdca.onrender.com](https://tasktide-api-tdca.onrender.com)
+
+> Note: the backend is hosted on Render's free tier, so it may take 30–50 seconds to respond on the first request after a period of inactivity (cold start).
+
 ## Features
 
 - **Intelligent Matching**: TF-IDF based algorithm for connecting jobs with freelancers
@@ -55,11 +62,9 @@ npm run dev
 
 Copy `.env.example` to `.env` and configure your variables:
 
-```
 MONGODB_URI=mongodb://localhost:27017/tasktide
 JWT_SECRET=your_secret_key
 PORT=5000
-```
 
 ## Documentation
 
