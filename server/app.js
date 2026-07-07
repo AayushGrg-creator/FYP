@@ -22,14 +22,14 @@ const proposalRoutes     = require('./routes/proposal.routes');
 const matchRoutes        = require('./routes/match.routes');
 // const paymentRoutes   = require('./routes/payment.routes'); // NOTE: currently broken — see payment.routes.js authorise/checkRole mismatch. Fix before uncommenting.
  const messageRoutes   = require('./routes/message.routes');
-// const reputationRoutes = require('./routes/reputation.routes');
+const reputationRoutes = require('./routes/reputation.routes');
 // const adminRoutes     = require('./routes/admin.routes');
 const projectRoutes = require('./routes/project.routes');
 const milestoneRoutes = require('./routes/milestone.routes');
 const gamificationRoutes = require('./routes/gamification.routes');
-
+const disputeRoutes = require('./routes/dispute.routes');
 const app = express();
-
+const reviewRoutes = require('./routes/review.routes');
 app.use(
   helmet({
     crossOriginResourcePolicy : { policy: 'cross-origin' },
@@ -112,12 +112,13 @@ app.use('/api/proposals',   proposalRoutes);
 app.use('/api/match',       matchRoutes);
 // app.use('/api/payments',   paymentRoutes);
 app.use('/api/messages',   messageRoutes);
-// app.use('/api/reputation', reputationRoutes);
+app.use('/api/reputation', reputationRoutes);
 // app.use('/api/admin',      adminRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/milestones', milestoneRoutes);
 app.use('/api/gamification', gamificationRoutes);
-
+app.use('/api/disputes', disputeRoutes);
+app.use('/api/reviews', reviewRoutes);
 app.use((req, res) => {
   logger.warn(`[Router] 404 — no route matched: ${req.method} ${req.originalUrl}`);
   res.status(404).json({

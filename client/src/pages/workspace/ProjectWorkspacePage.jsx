@@ -20,6 +20,10 @@ import ChatPanel        from '../../components/chat/ChatPanel';
 import api              from '../../services/api';
 import projectFileService from '../../services/projectFileService';
 import milestoneService from '../../services/milestoneService';
+import DisputeForm from '../../components/disputes/DisputeForm';
+import { getDisputeByMilestone } from '../../services/disputeService';
+import reviewService from '../../services/reviewService';
+import RateFreelancerModal from '../../components/reviews/RateFreelancerModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 async function handleDownload(url, filename) {
@@ -105,7 +109,9 @@ function StatusPill({ status }) {
 //   - field is `name`, not `title`
 //   - real status enum: created | funded | pending_approval | released |
 //     disputed | resolved | refunded | cancelled  (NOT pending/submitted/approved)
-function MilestoneRow({ milestone, role, onFund, onSubmit, onApprove, onDispute, onDelete, onCancel,busy }) {
+// ADDED: onRate / isRated — lets the client rate the freelancer once a
+// milestone is released or resolved (see RateFreelancerModal).
+function MilestoneRow({ milestone, role, onFund, onSubmit, onApprove, onDispute, onViewDispute, onDelete, onCancel, onRate, isRated, busy }) {
   const statusStyles = {
     created:          { color:'#64748b', icon:'○', label: 'Created' },
     funded:           { color:'#60a5fa', icon:'◉', label: 'Funded' },
@@ -283,10 +289,60 @@ function MilestoneRow({ milestone, role, onFund, onSubmit, onApprove, onDispute,
           </button>
         </div>
       )}
+      {/* ── Freelancer: dispute a milestone the client hasn't approved ── */}
+      {role === 'freelancer' && milestone.status === 'pending_approval' && (
+        <button
+          onClick={() => onDispute(milestone._id)}
+          disabled={busy}
+          style={{
+            alignSelf: 'flex-start',
+            background:   '#450a0a', border: '1px solid #7f1d1d', borderRadius: 6,
+            color: '#f87171', fontSize: 11, padding: '5px 12px',
+            cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'monospace', opacity: busy ? 0.6 : 1,
+          }}
+        >
+          ⚠ Dispute
+        </button>
+      )}
+
+      {/* ── Both parties: view the report once a dispute exists on this milestone ── */}
+      {milestone.status === 'disputed' && (
+        <button
+          onClick={() => onViewDispute(milestone._id)}
+          style={{
+            alignSelf: 'flex-start',
+            background: '#450a0a', border: '1px solid #7f1d1d', borderRadius: 6,
+            color: '#f87171', fontSize: 11, padding: '5px 12px',
+            cursor: 'pointer', fontFamily: 'monospace',
+          }}
+        >
+          📄 View Dispute Report
+        </button>
+      )}
+
+      {/* ── Client: rate the freelancer once this milestone is done ── */}
+      {role === 'client' && ['released', 'resolved'].includes(milestone.status) && (
+        isRated ? (
+          <span style={{ alignSelf: 'flex-start', fontSize: 11, color: '#64748b', fontFamily: 'monospace' }}>
+            ✓ Rated
+          </span>
+        ) : (
+          <button
+            onClick={() => onRate(milestone._id, milestone.name)}
+            style={{
+              alignSelf: 'flex-start',
+              background: '#422006', border: '1px solid #92400e', borderRadius: 6,
+              color: '#fbbf24', fontSize: 11, padding: '5px 12px',
+              cursor: 'pointer', fontFamily: 'monospace',
+            }}
+          >
+            ⭐ Rate Freelancer
+          </button>
+        )
+      )}
     </div>
   );
 }
-// ─── Milestone timeline (visual progress strip) ───────────────────────────────
 function MilestoneTimeline({ milestones }) {
   if (!milestones || milestones.length === 0) return null;
 
@@ -392,7 +448,9 @@ function MilestoneTimeline({ milestones }) {
 }
 
 // ─── Archived milestones (released / cancelled) — collapsed by default ───────
-function ArchivedMilestones({ milestones, role, onDelete, busy }) {
+// ADDED: onRate / ratedMilestoneIds passed through — released/resolved
+// milestones live here, so the rating button has to work in this list too.
+function ArchivedMilestones({ milestones, role, onDelete, onRate, ratedMilestoneIds, busy }) {
   const [open, setOpen] = useState(false);
   if (!milestones || milestones.length === 0) return null;
 
@@ -430,6 +488,8 @@ function ArchivedMilestones({ milestones, role, onDelete, busy }) {
               onDispute={() => {}}
               onDelete={onDelete}
               onCancel={() => {}}
+              onRate={onRate}
+              isRated={ratedMilestoneIds?.has(String(m._id))}
               busy={busy === m._id}
             />
           ))}
@@ -818,7 +878,8 @@ function Section({ title, icon, children }) {
 // ─── LEFT PANEL ───────────────────────────────────────────────────────────────
 function ContractPanel({
   project, projectId, onFilesChanged,
-  onFundMilestone, onSubmitMilestone, onApproveMilestone, onDisputeMilestone, onDeleteMilestone, onCancelMilestone,
+  onFundMilestone, onSubmitMilestone, onApproveMilestone, onDisputeMilestone, onViewDispute, onDeleteMilestone, onCancelMilestone,
+  onRateMilestone, ratedMilestoneIds,
   onMilestoneCreated, milestoneActionBusyId,
 }) {
   const { user } = useContext(AuthContext);
@@ -934,8 +995,11 @@ function ContractPanel({
               onSubmit={onSubmitMilestone}
               onApprove={onApproveMilestone}
               onDispute={onDisputeMilestone}
+              onViewDispute={onViewDispute}
               onDelete={onDeleteMilestone}
               onCancel={onCancelMilestone}
+              onRate={onRateMilestone}
+              isRated={ratedMilestoneIds?.has(String(m._id))}
               busy={milestoneActionBusyId === m._id}
             />
           ))}
@@ -950,6 +1014,8 @@ function ContractPanel({
         milestones={archived}
         role={user?.role}
         onDelete={onDeleteMilestone}
+        onRate={onRateMilestone}
+        ratedMilestoneIds={ratedMilestoneIds}
         busy={milestoneActionBusyId}
       />
     </>
@@ -999,6 +1065,12 @@ export default function ProjectWorkspacePage() {
   const [activeTab, setActiveTab] = useState('contract'); // mobile tab: 'contract' | 'chat'
   const [isMobile,  setIsMobile]  = useState(window.innerWidth < 900);
   const [milestoneActionBusyId, setMilestoneActionBusyId] = useState(null);
+  // Milestone currently being disputed via the modal (null = modal closed)
+  const [disputeMilestoneId, setDisputeMilestoneId] = useState(null);
+  // Milestone currently being rated via the modal (null = modal closed)
+  const [rateModal, setRateModal] = useState(null); // { milestoneId, milestoneName } | null
+  // Milestone IDs that already have a review on this project (Set of strings)
+  const [ratedMilestoneIds, setRatedMilestoneIds] = useState(new Set());
 
   // ── Responsive ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1022,6 +1094,15 @@ export default function ProjectWorkspacePage() {
       setError(null);
       const data = await api.get(`/projects/${projectId}`);
       setProject(data.project);
+
+      // Non-fatal: if this fails, the "Rate Freelancer" button just won't
+      // be pre-hidden for milestones already rated in a previous session.
+      try {
+        const reviewData = await reviewService.getByProject(projectId);
+        setRatedMilestoneIds(new Set((reviewData.reviews || []).map((r) => String(r.milestone))));
+      } catch {
+        // ignore — non-critical
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load project');
     } finally {
@@ -1079,19 +1160,25 @@ export default function ProjectWorkspacePage() {
     }
   }, [fetchProject]);
 
-  const handleDisputeMilestone = useCallback(async (milestoneId) => {
-    const reason = window.prompt('Describe the issue with this milestone:');
-    if (!reason?.trim()) return;
-    setMilestoneActionBusyId(milestoneId);
+  // CHANGED: previously prompted for a plain-text reason and called
+  // milestoneService.dispute() directly — that path sets Milestone.status
+  // to 'disputed' but never creates a Dispute document, so no report could
+  // ever be generated. Now opens the DisputeForm modal, which goes through
+  // dispute.service.js (creates the Dispute doc AND raises the milestone
+  // dispute internally).
+  const handleDisputeMilestone = useCallback((milestoneId) => {
+    setDisputeMilestoneId(milestoneId);
+  }, []);
+
+  // Looks up the Dispute doc for this milestone, then navigates to its report.
+  const handleViewDispute = useCallback(async (milestoneId) => {
     try {
-      await milestoneService.dispute(milestoneId, reason.trim());
-      await fetchProject();
+      const dispute = await getDisputeByMilestone(milestoneId);
+      navigate(`/disputes/${dispute._id}`);
     } catch (err) {
-      alert(err.message || 'Dispute submission failed');
-    } finally {
-      setMilestoneActionBusyId(null);
+      alert(err.response?.data?.message || 'Could not find a dispute for this milestone.');
     }
-  }, [fetchProject]);
+  }, [navigate]);
 
   const handleDeleteMilestone = useCallback(async (milestoneId) => {
   if (!window.confirm('Delete this milestone? This cannot be undone.')) return;
@@ -1118,6 +1205,20 @@ const handleCancelMilestone = useCallback(async (milestoneId) => {
     setMilestoneActionBusyId(null);
   }
 }, [fetchProject]);
+
+  // ── Rating actions ───────────────────────────────────────────────────────
+  const handleRateMilestone = useCallback((milestoneId, milestoneName) => {
+    setRateModal({ milestoneId, milestoneName });
+  }, []);
+
+  const handleRatingSubmitted = useCallback((milestoneId) => {
+    setRatedMilestoneIds((prev) => {
+      const next = new Set(prev);
+      next.add(String(milestoneId));
+      return next;
+    });
+  }, []);
+
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -1310,8 +1411,11 @@ const handleCancelMilestone = useCallback(async (milestoneId) => {
   onSubmitMilestone={handleSubmitMilestone}
   onApproveMilestone={handleApproveMilestone}
   onDisputeMilestone={handleDisputeMilestone}
+  onViewDispute={handleViewDispute}
   onDeleteMilestone={handleDeleteMilestone}
    onCancelMilestone={handleCancelMilestone}
+  onRateMilestone={handleRateMilestone}
+  ratedMilestoneIds={ratedMilestoneIds}
   onMilestoneCreated={fetchProject}
   milestoneActionBusyId={milestoneActionBusyId}
 />
@@ -1336,6 +1440,57 @@ const handleCancelMilestone = useCallback(async (milestoneId) => {
           </div>
         )}
       </div>
+
+      {/* ── Raise Dispute modal ── */}
+      {disputeMilestoneId && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 16,
+          }}
+          onClick={() => setDisputeMilestoneId(null)}
+        >
+          <div onClick={(e) => e.stopPropagation()}>
+            <DisputeForm
+              projectId={projectId}
+              milestoneId={disputeMilestoneId}
+              onClose={() => setDisputeMilestoneId(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Rate Freelancer modal ── */}
+      {rateModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 16,
+          }}
+          onClick={() => setRateModal(null)}
+        >
+          <div onClick={(e) => e.stopPropagation()}>
+            <RateFreelancerModal
+              milestoneId={rateModal.milestoneId}
+              milestoneName={rateModal.milestoneName}
+              onClose={() => setRateModal(null)}
+              onSubmitted={handleRatingSubmitted}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -107,7 +107,7 @@ export default function ProfileStrengthMeter({ profileData = {} }) {
         
         {missingItems.length === 0 ? (
           <div style={styles.completeState}>
-            <span style={styles.completeIcon}>🚀</span>
+            <span style={styles.completeIcon}></span>
             <div style={styles.completeTextBlock}>
               <span style={styles.completeTitle}>Profile 100% Optimized</span>
               <p style={styles.completeDesc}>Your professional data vectors are perfectly tuned for our recommendation engine algorithms.</p>
@@ -134,8 +134,8 @@ export default function ProfileStrengthMeter({ profileData = {} }) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
   card: {
-    background: '#111827',
-    border: '1px solid #1E293B',
+    background: '#ffffff',
+    border: '1px solid rgba(0,0,0,0.08)',
     borderRadius: 14,
     padding: '24px',
     display: 'flex',
@@ -143,7 +143,7 @@ const styles = {
     fontFamily: "'DM Sans', system-ui, sans-serif",
     boxSizing: 'border-box',
     width: '100%',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)',
   },
   headerRow: {
     display: 'flex',
@@ -168,11 +168,11 @@ const styles = {
     margin: 0,
     fontSize: '16px',
     fontWeight: 700,
-    color: '#F1F5F9',
+    color: '#0F172A',
   },
   scoreBadge: {
-    background: '#0B1120',
-    border: '1px solid #1E293B',
+    background: '#F8FAFC',
+    border: '1px solid rgba(0,0,0,0.08)',
     borderRadius: '10px',
     padding: '6px 12px',
     display: 'flex',
@@ -191,7 +191,7 @@ const styles = {
   },
   progressBarBg: {
     height: '6px',
-    background: '#1E293B',
+    background: 'rgba(0,0,0,0.08)',
     borderRadius: '3px',
     overflow: 'hidden',
     width: '100%',
@@ -203,7 +203,7 @@ const styles = {
   },
   divider: {
     height: '1px',
-    background: '#1E293B',
+    background: 'rgba(0,0,0,0.08)',
     marginBottom: '20px',
   },
   checklistSection: {
@@ -228,8 +228,8 @@ const styles = {
     display: 'flex',
     gap: '12px',
     alignItems: 'flex-start',
-    background: '#0B1120',
-    border: '1px solid #1E293B',
+    background: '#F8FAFC',
+    border: '1px solid rgba(0,0,0,0.08)',
     padding: '12px 14px',
     borderRadius: '8px',
   },
@@ -250,13 +250,13 @@ const styles = {
   },
   todoLabel: {
     fontSize: '13px',
-    color: '#94A3B8',
+    color: '#475569',
     fontWeight: 500,
     lineHeight: '1.4',
   },
   impactBadge: {
-    color: '#38BDF8',
-    background: '#0F2235',
+    color: '#2563EB',
+    background: '#DBEAFE',
     fontSize: '11px',
     fontWeight: 600,
     padding: '2px 6px',
@@ -266,8 +266,8 @@ const styles = {
   completeState: {
     display: 'flex',
     gap: '14px',
-    background: '#0F2F21',
-    border: '1px solid #10B981',
+    background: '#DCFCE7',
+    border: '1px solid #86EFAC',
     padding: '16px',
     borderRadius: '10px',
     alignItems: 'center',
@@ -283,12 +283,12 @@ const styles = {
   completeTitle: {
     fontSize: '14px',
     fontWeight: 700,
-    color: '#10B981',
+    color: '#16A34A',
   },
   completeDesc: {
     margin: 0,
     fontSize: '12.5px',
-    color: '#A7F3D0',
+    color: '#166534',
     lineHeight: '1.4',
   },
 };

@@ -21,7 +21,7 @@ const evidenceSchema = new mongoose.Schema(
   { _id: true, timestamps: true }
 );
 
-/* ─── Admin action log sub-document ───────────────────────────────── */
+/* ─── Admin action log sub-document (kept, unused by new flow) ────── */
 const adminActionSchema = new mongoose.Schema(
   {
     admin: {
@@ -57,8 +57,10 @@ const disputeSchema = new mongoose.Schema(
       index:    true,
     },
     milestone: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref:  'Milestone',
+      type:     mongoose.Schema.Types.ObjectId,
+      ref:      'Milestone',
+      required: [true, 'Milestone reference is required'],
+      index:    true,
     },
     initiator: {
       type:     mongoose.Schema.Types.ObjectId,
@@ -100,7 +102,7 @@ const disputeSchema = new mongoose.Schema(
     /* ── Status lifecycle ── */
     status: {
       type:    String,
-      enum:    ['open', 'under_review', 'awaiting_info', 'resolved', 'closed'],
+      enum:    ['open', 'under_review', 'awaiting_acceptance', 'resolved', 'closed'],
       default: 'open',
       index:   true,
     },
@@ -109,12 +111,42 @@ const disputeSchema = new mongoose.Schema(
     escrowAmount: { type: Number, min: 0, default: 0 },
     currency:     { type: String, enum: ['NPR', 'USD'], default: 'NPR' },
 
-    /* ── Admin workflow ── */
+    /* ── Admin workflow (kept for schema compat, unused by new flow) ── */
     assignedAdmin: {
       type: mongoose.Schema.Types.ObjectId,
       ref:  'User',
     },
     adminActions:  [adminActionSchema],
+
+    /* ── System-generated report ── */
+    reportGeneratedAt: { type: Date },
+    reasoning: {
+      type:      String,
+      trim:      true,
+      maxlength: [3000, 'Reasoning cannot exceed 3000 characters'],
+    },
+    evidenceSnapshot: {
+      type: mongoose.Schema.Types.Mixed, // raw computed evidence used for the report, for auditability
+      default: null,
+    },
+
+    /* ── Suggested resolution (system-computed) ── */
+    suggestedResolution: {
+      type: String,
+      enum: ['release_to_freelancer', 'refund_to_client', 'split', null],
+      default: null,
+    },
+    suggestedSplitPercentFreelancer: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+
+    /* ── Acceptance flow (replaces admin ruling) ── */
+    clientAccepted:      { type: Boolean, default: false },
+    freelancerAccepted:  { type: Boolean, default: false },
+    clientAcceptedAt:    { type: Date },
+    freelancerAcceptedAt:{ type: Date },
 
     /* ── Final ruling ── */
     resolution: {
@@ -155,12 +187,18 @@ const disputeSchema = new mongoose.Schema(
 disputeSchema.index({ status: 1, createdAt: -1 });
 disputeSchema.index({ project: 1, status: 1 });
 disputeSchema.index({ initiator: 1, createdAt: -1 });
+disputeSchema.index({ milestone: 1 }, { unique: true }); // one active dispute per milestone
 
 /* ─── Virtual: days open ──────────────────────────────────────────── */
 disputeSchema.virtual('daysOpen').get(function () {
   const end   = this.resolvedAt || new Date();
   const diff  = end - this.createdAt;
   return Math.floor(diff / (1000 * 60 * 60 * 24));
+});
+
+/* ─── Virtual: is fully accepted ──────────────────────────────────── */
+disputeSchema.virtual('bothAccepted').get(function () {
+  return this.clientAccepted && this.freelancerAccepted;
 });
 
 /* ─── Pre-save: set resolvedAt when status → resolved ────────────── */

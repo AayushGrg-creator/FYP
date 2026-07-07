@@ -1,3 +1,4 @@
+
 /**
  * client/src/pages/payments/KhaltiReturnPage.jsx
  *
@@ -24,6 +25,10 @@ export default function KhaltiReturnPage() {
 
   const pidx        = searchParams.get('pidx');
   const milestoneId = searchParams.get('milestoneId');
+
+ useEffect(() => {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  }, []);
 
   useEffect(() => {
     async function confirm() {
@@ -62,7 +67,7 @@ export default function KhaltiReturnPage() {
       </p>
       {status !== 'confirming' && (
         <button
-          onClick={() => navigate('/dashboard')}
+         onClick={() => navigate('/dashboard', { replace: true })}
           style={{
             background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
             color: '#94a3b8', fontSize: 13, padding: '8px 18px', cursor: 'pointer', fontFamily: 'monospace',

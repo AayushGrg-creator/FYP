@@ -85,9 +85,9 @@ export default function LandingPage() {
           Task<span>Tide</span>
         </Link>
         <ul className={styles.navLinks}>
-          <li><a href="#categories">Explore</a></li>
-          <li><a href="#how-it-works">How It Works</a></li>
-          <li><a href="#cta">Become a Seller</a></li>
+          <li><a href="#categories"></a></li>
+          <li><a href="#how-it-works"></a></li>
+          <li><a href="#cta"></a></li>
         </ul>
         <div className={styles.navActions}>
           <Link to="/register" className={`${styles.btn} ${styles.btnGhost}`}>Sign Up</Link>
@@ -98,25 +98,18 @@ export default function LandingPage() {
       {/* HERO */}
       <section className={styles.hero}>
         <div className={styles.heroBadge}>
-          <span className={styles.dot}></span>
-          50,000+ freelancers ready to help
+          
+          
         </div>
         <h1>Find the right <span className={styles.highlight}>talent</span> for every task.</h1>
         <p className={styles.heroSub}>
           Task Tide connects you with skilled freelancers for design, development,
           writing, marketing and more — delivered on time, every time.
         </p>
-        <div className={styles.heroSearch}>
-          <input type="text" placeholder="Search for any service…" />
-          <button type="button">Search</button>
-        </div>
+       
         <div className={styles.heroTags}>
-          <span>Popular:</span>
-          <a href="#">Logo Design</a>
-          <a href="#">Web Dev</a>
-          <a href="#">Copywriting</a>
-          <a href="#">Video Editing</a>
-          <a href="#">SEO</a>
+          <span></span>
+          
         </div>
       </section>
 

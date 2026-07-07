@@ -12,6 +12,7 @@ import useGamification from '../../hooks/useGamification';
 import ProgressBar from '../../components/gamification/ProgressBar';
 import LevelBadge from '../../components/gamification/LevelBadge';
 import BadgeGrid from '../../components/gamification/BadgeGrid';
+import reviewService from '../../services/reviewService';
 
 /* ══════════════════════════════════════════════════════════════════════
    FreelancerDashboard.jsx
@@ -51,7 +52,7 @@ function useRealProfile() {
   return {
     loading,
     name: user?.name || 'Freelancer',
-    trustScore: profile?.trustScore ?? user?.trustScore ?? 0,
+trustScore: user?.trustScore ?? 0,
     profileStrength: profile?.profileStrength ?? 0,
     bio: profile?.bio || '',
     skills: profile?.skills || [],
@@ -130,15 +131,23 @@ function useRealMatches() {
   return { matches, loading };
 }
 
-/* ─── Placeholder stats — EXPLICITLY NOT real data ──────────────────── */
-const MOCK_STATS = {
-  completedProjects: 0,
-  activeProjects: 0,
-  earnings: 0,
-  responseRate: 0,
-  completionRate: 0,
-  avgRating: 0,
-};
+/* ─── Real rating summary hook — client → freelancer reviews ──────────
+   Pulls the freelancer's own aggregated rating from GET /reviews/my-summary,
+   which review.controller.js recalculates live from the Review collection.
+   ──────────────────────────────────────────────────────────────────── */
+function useRatingSummary() {
+  const [summary, setSummary] = useState({ avgRating: 0, ratingCount: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    reviewService.getMySummary()
+      .then((res) => setSummary({ avgRating: res.avgRating ?? 0, ratingCount: res.ratingCount ?? 0 }))
+      .catch(() => setSummary({ avgRating: 0, ratingCount: 0 }))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { ...summary, loading };
+}
 
 /* ─── Atoms ──────────────────────────────────────────────────────────── */
 function SectionLabel({ children, tag }) {
@@ -419,6 +428,7 @@ function MatchCard({ match, onView }) {
 
 /* ─── Main dashboard ─────────────────────────────────────────────────── */
 export default function FreelancerDashboard() {
+  const { logout } = useAuth();
   const profile = useRealProfile();
   const { proposals, loading: proposalsLoading, error: proposalsError, reload: reloadProposals } = useMyProposals();
   const { matches, loading: matchesLoading } = useRealMatches();
@@ -429,9 +439,15 @@ export default function FreelancerDashboard() {
     loading: gamificationLoading,
     error: gamificationError,
   } = useGamification();
+  const { avgRating, ratingCount, loading: ratingLoading } = useRatingSummary();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [completingId, setCompletingId] = useState(null);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   // ── Active workspaces (Projects) for this freelancer ────────────────────
   const [projects, setProjects] = useState([]);
@@ -442,6 +458,16 @@ export default function FreelancerDashboard() {
 
   const tabs = ['overview', 'proposals', 'matches', 'badges'];
   const earnedBadgeCount = myBadges?.length || 0;
+
+  // ── Real Performance Overview stats, derived from `projects` ───────────
+  // ASSUMPTION (not independently verified against Project.js's schema this
+  // session): completed = project.status === 'completed', everything else
+  // counts as active. If your actual status enum uses different values
+  // (e.g. 'in_progress' as the "active" state instead of a catch-all),
+  // adjust the filters below accordingly.
+  const completedProjectsCount = projects.filter((p) => p.status === 'completed').length;
+  const activeProjectsCount = projects.filter((p) => p.status !== 'completed').length;
+  const totalEarnings = projects.reduce((sum, p) => sum + (p.amountReleased || 0), 0);
 
   // Accepted proposals whose job is actively being worked on or finished.
   const activeJobs = proposals.filter(
@@ -491,6 +517,18 @@ export default function FreelancerDashboard() {
         </div>
 
         <div style={{ display: 'flex', gap: 4 }}>
+          <button
+    onClick={() => navigate('/jobs')}
+    style={{
+      padding: '7px 18px', background: 'transparent',
+      border: `1px solid ${T.border}`, borderRadius: 6,
+      color: T.textSecond, fontFamily: "'DM Mono', monospace",
+      fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em',
+      cursor: 'pointer', transition: 'all 0.15s',
+    }}
+  >
+    Browse Jobs
+  </button>
           {tabs.map((t) => (
             <button
               key={t}
@@ -523,18 +561,32 @@ export default function FreelancerDashboard() {
           ))}
         </div>
 
-        <div onClick={() => navigate('/profile/edit')} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} title="Edit your profile">
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt={profile.name} style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${T.borderStrong}` }} />
-          ) : (
-            <TrustScoreBadge score={profile.trustScore} size={42} showLabel={false} />
-          )}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{profile.name}</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: T.textMuted }}>
-              {profile.skills.length > 0 ? profile.skills.slice(0, 2).join(', ') : 'Complete your profile →'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div onClick={() => navigate('/profile/edit')} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} title="Edit your profile">
+            {profile.avatarUrl ? (
+              <img src={profile.avatarUrl} alt={profile.name} style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${T.borderStrong}` }} />
+            ) : (
+              <TrustScoreBadge score={profile.trustScore} size={42} showLabel={false} />
+            )}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{profile.name}</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: T.textMuted }}>
+                {profile.skills.length > 0 ? profile.skills.slice(0, 2).join(', ') : 'Complete your profile →'}
+              </div>
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            title="Log out"
+            style={{
+              padding: '8px 16px', background: T.surface, border: `1px solid ${T.border}`,
+              borderRadius: 8, color: T.danger, fontFamily: "'DM Mono', monospace",
+              fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Logout
+          </button>
         </div>
       </div>
 
@@ -596,12 +648,12 @@ export default function FreelancerDashboard() {
                 </Card>
 
                 <div>
-                  <SectionLabel tag="Coming soon">Performance Overview</SectionLabel>
+                  <SectionLabel>Performance Overview</SectionLabel>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                    <StatCard label="Completed" value={MOCK_STATS.completedProjects} icon="✅" suffix=" jobs" colour={T.success} comingSoon />
-                    <StatCard label="Active"     value={MOCK_STATS.activeProjects}   icon="🔄" colour={T.accent} comingSoon />
-                    <StatCard label="Earnings (NPR)" value={MOCK_STATS.earnings}     icon="💰" colour={T.brand} prefix="₨" comingSoon />
-                    <StatCard label="Avg Rating" value={MOCK_STATS.avgRating * 20}   icon="⭐" suffix="%" colour={T.pink} comingSoon />
+                    <StatCard label="Completed" value={completedProjectsCount} icon="" suffix=" jobs" colour={T.success} />
+                    <StatCard label="Active"     value={activeProjectsCount}   icon="" colour={T.accent} />
+                    <StatCard label="Earnings (NPR)" value={totalEarnings}     icon="" colour={T.brand} prefix="₨" />
+                    <StatCard label="Avg Rating" value={ratingLoading ? 0 : Math.round(avgRating * 20)}   icon="" suffix="%" colour={T.pink} />
                   </div>
                 </div>
 

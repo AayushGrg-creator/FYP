@@ -124,6 +124,7 @@ exports.updateJob = async (jobId, userId, userRole, body) => {
   const allowedFields = [
     'title', 'description', 'budgetType', 'budgetAmount',
     'skillsRequired', 'category', 'deliveryTimeframe',
+    'isArchived',
   ];
 
   allowedFields.forEach((field) => {
@@ -167,10 +168,14 @@ exports.deleteJob = async (jobId, userId, userRole) => {
 
 /* ══════════════════════════════════════════════════════════════════
    getMyJobs — jobs posted by the authenticated client
+   CHANGED: now supports ?archived=true so cancelled/closed listings
+   remain reachable via a dedicated "Archived" filter tab instead of
+   disappearing from the list entirely with no way to view them again.
 ══════════════════════════════════════════════════════════════════ */
 exports.getMyJobs = async (clientId, query) => {
-  const { status, page = 1, limit = 10 } = query;
-  const filter = { client: clientId, isArchived: false };
+  const { status, archived, page = 1, limit = 10 } = query;
+  const filter = { client: clientId };
+  filter.isArchived = archived === 'true' ? true : false;
   if (status) filter.status = status;
 
   const { skip, limitN, totalDocs, totalPages } =

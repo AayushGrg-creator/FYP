@@ -237,16 +237,16 @@ exports.approveMilestone = async (req, res) => {
       `Milestone approved: ${milestone.name}`
     );
 
-    await reputationService.recalculateTrustScore(milestone.freelancer);
-    await gamificationService.checkAndAwardBadgesForUser(milestone.freelancer, {
-      awardedForLabel: `Triggered by milestone approval: ${milestone.name}`,
-      relatedProject: milestone.project,
-    });
+ const project = await Project.findById(milestone.project);
+if (project) {
+  await project.recalculateProgress();
+}
 
-    const project = await Project.findById(milestone.project);
-    if (project) {
-      await project.recalculateProgress();
-    }
+await reputationService.recalculateTrustScore(milestone.freelancer);
+await gamificationService.checkAndAwardBadgesForUser(milestone.freelancer, {
+  awardedForLabel: `Triggered by milestone approval: ${milestone.name}`,
+  relatedProject: milestone.project,
+});
 
     emitToProjectRoom(milestone.project, 'milestone-released', {
       milestoneId: milestone._id,

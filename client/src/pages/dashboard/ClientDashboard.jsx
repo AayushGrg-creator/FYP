@@ -31,8 +31,13 @@ const T = {
 };
 
 export default function ClientDashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   // ── Real ClientProfile data (company, industry, location, avatar) ──
   const { profile, loading: profileLoading, fetchProfile } = useProfile();
@@ -66,13 +71,20 @@ export default function ClientDashboard() {
 
   // ── Load jobs ──────────────────────────────────────────────────────────────
   // NOTE: Job.status enum is 'open' | 'in_progress' | 'completed' | 'disputed'
-  // (underscore, no 'cancelled' state exists on the schema).
+  // (underscore, no 'cancelled' state exists on the schema). Cancelling a job
+  // sets isArchived:true instead — the 'archived' filter value below is a
+  // separate axis from status, not a status value itself.
   const loadJobs = useCallback(async () => {
     setJobsL(true);
     try {
       // Only send a status param when a filter is actually selected — sending
       // status: '' would filter for an empty string server-side instead of "all".
-      const params = statusFilter ? { status: statusFilter } : {};
+      const params =
+        statusFilter === 'archived'
+          ? { archived: 'true' }
+          : statusFilter
+            ? { status: statusFilter }
+            : {};
       const data = await getMyJobs(params);
       setJobs(data.jobs);
 
@@ -132,12 +144,18 @@ export default function ClientDashboard() {
 
   // NOTE: schema has no 'cancelled' status — closing a listing is represented
   // as archiving it (isArchived: true) rather than an invalid status value.
+  // CHANGED: errors are now surfaced instead of silently swallowed — the
+  // backend's updateJob() rejects any job whose status isn't 'open' with a
+  // 400, so a silent catch made cancelling an in-progress job look like
+  // nothing happened when it was actually failing outright.
   const handleCloseJob = async (jobId) => {
-    if (!window.confirm('Cancel this job listing?')) return;
+    if (!window.confirm('Cancel this job listing? It will be archived and hidden from the main list — you can still find it under the "Archived" filter.')) return;
     try {
       await jobService.update(jobId, { isArchived: true });
       await loadJobs();
-    } catch {}
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to cancel this job.');
+    }
   };
 
   return (
@@ -147,22 +165,27 @@ export default function ClientDashboard() {
         <div style={styles.logo}>
           Task <span style={{ color: T.brand }}>Tide</span>
         </div>
-        <div
-          onClick={() => navigate('/profile/edit')}
-          style={styles.userChip}
-          title="Edit your profile"
-        >
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={user?.name} style={styles.userAvatar} />
-          ) : (
-            <div style={styles.userAvatarFallback}>
-              {user?.name?.charAt(0)?.toUpperCase() || '?'}
+        <div style={styles.topBarRight}>
+          <div
+            onClick={() => navigate('/profile/edit')}
+            style={styles.userChip}
+            title="Edit your profile"
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={user?.name} style={styles.userAvatar} />
+            ) : (
+              <div style={styles.userAvatarFallback}>
+                {user?.name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+            )}
+            <div>
+              <div style={styles.userName}>{user?.name}</div>
+              <div style={styles.userRole}>Client</div>
             </div>
-          )}
-          <div>
-            <div style={styles.userName}>{user?.name}</div>
-            <div style={styles.userRole}>Client</div>
           </div>
+          <button style={styles.logoutBtn} onClick={handleLogout} title="Log out">
+            Logout
+          </button>
         </div>
       </div>
 
@@ -171,7 +194,7 @@ export default function ClientDashboard() {
         <div style={styles.pageHeader}>
           <div>
             <h1 style={styles.pageTitle}>
-              Good {getGreeting()}, {user?.name?.split(' ')[0]} 👋
+              Good {getGreeting()}, {user?.name?.split(' ')[0]} 
             </h1>
             <p style={styles.pageSub}>Manage your job listings and review incoming proposals</p>
           </div>
@@ -217,10 +240,10 @@ export default function ClientDashboard() {
 
         {/* Stats row */}
         <div style={styles.statsRow}>
-          <StatCard label="Open Jobs"     value={stats.open}       accent={T.brand}   icon="📂" />
-          <StatCard label="In Progress"   value={stats.inProgress} accent={T.warning} icon="⚡" />
-          <StatCard label="Completed"     value={stats.completed}  accent={T.success} icon="✅" />
-          <StatCard label="Total Posted"  value={stats.total || 0} accent={T.purple}  icon="📋" />
+          <StatCard label="Open Jobs"     value={stats.open}       accent={T.brand}   icon="" />
+          <StatCard label="In Progress"   value={stats.inProgress} accent={T.warning} icon="" />
+          <StatCard label="Completed"     value={stats.completed}  accent={T.success} icon="" />
+          <StatCard label="Total Posted"  value={stats.total || 0} accent={T.purple}  icon="" />
         </div>
 
         {/* Tabs */}
@@ -309,7 +332,7 @@ export default function ClientDashboard() {
         {tab === 'My Jobs' && (
           <div>
             <div style={styles.filterRow}>
-              {['', 'open', 'in_progress', 'completed', 'disputed'].map(s => (
+              {['', 'open', 'in_progress', 'completed', 'disputed', 'archived'].map(s => (
                 <button
                   key={s}
                   style={{ ...styles.filterBtn, ...(statusFilter === s ? styles.filterActive : {}) }}
@@ -340,7 +363,7 @@ export default function ClientDashboard() {
                       <div style={styles.tableJobSub}>{(job.category || '').replace(/_/g, ' ')}</div>
                     </div>
                     <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-                      <StatusBadge status={job.status} />
+                      <StatusBadge status={job.status} archived={job.isArchived} />
                     </div>
                     <div style={{ flex: 1, color: T.brand, fontWeight: 600, fontSize: 13, textAlign: 'center' }}>
                       {job.budgetAmount?.toLocaleString()} NPR
@@ -354,7 +377,11 @@ export default function ClientDashboard() {
                       {job.status === 'open' && (
                         <Link to={`/jobs/${job._id}/edit`} style={styles.tinyLinkBtn}>Edit</Link>
                       )}
-                      {['open', 'in_progress'].includes(job.status) && (
+                      {/* CHANGED: was ['open','in_progress'].includes(job.status) — but the
+                          backend's updateJob() only permits edits on 'open' jobs, so cancelling
+                          an in_progress job always failed with a 400 that the old empty catch
+                          swallowed silently. Restricted to what the backend actually allows. */}
+                      {job.status === 'open' && !job.isArchived && (
                         <button
                           style={{ ...styles.tinyBtn, background: '#FEF2F2', color: T.danger, borderColor: '#FECACA' }}
                           onClick={() => handleCloseJob(job._id)}
@@ -511,17 +538,18 @@ function ProposalCard({ proposal, onAccept, onReject, acceptLoading, rejectLoadi
   );
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status, archived }) {
   const MAP = {
     open:         { bg: '#D1FAE5', color: '#059669' },
     in_progress:  { bg: '#DBEAFE', color: '#2563EB' },
     completed:    { bg: '#EDE9FE', color: '#7C3AED' },
     disputed:     { bg: '#FEE2E2', color: '#DC2626' },
   };
-  const s = MAP[status] || MAP.open;
+  const s = archived ? { bg: T.surfaceAlt, color: T.textMuted } : (MAP[status] || MAP.open);
+  const label = archived ? `${status?.replace('_', ' ')} · archived` : status?.replace('_', ' ');
   return (
     <span style={{ background: s.bg, color: s.color, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
-      {status?.replace('_', ' ')}
+      {label}
     </span>
   );
 }
@@ -559,10 +587,10 @@ function getGreeting() {
 }
 
 const TIPS = [
-  { icon: '✏️', title: 'Write clear descriptions', text: 'Detailed requirements attract higher-quality proposals.' },
-  { icon: '💰', title: 'Set a realistic budget', text: 'Competitive budgets get more experienced freelancers.' },
-  { icon: '⚡', title: 'Respond quickly', text: 'Accepting a proposal within 48 h improves project outcomes.' },
-  { icon: '⭐', title: 'Leave honest reviews', text: 'Reviews help build a trusted community for everyone.' },
+  { icon: '', title: 'Write clear descriptions', text: 'Detailed requirements attract higher-quality proposals.' },
+  { icon: '', title: 'Set a realistic budget', text: 'Competitive budgets get more experienced freelancers.' },
+  { icon: '', title: 'Respond quickly', text: 'Accepting a proposal within 48 h improves project outcomes.' },
+  { icon: '', title: 'Leave honest reviews', text: 'Reviews help build a trusted community for everyone.' },
 ];
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -590,6 +618,11 @@ const styles = {
     fontWeight: 700,
     color: T.textPrimary,
   },
+  topBarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+  },
   userChip: {
     display: 'flex',
     alignItems: 'center',
@@ -608,6 +641,17 @@ const styles = {
   },
   userName: { fontSize: 13, fontWeight: 600, color: T.textPrimary },
   userRole: { fontFamily: "'DM Mono', monospace", fontSize: 10, color: T.textMuted },
+  logoutBtn: {
+    background: T.surface,
+    border: `1px solid ${T.border}`,
+    color: T.danger,
+    borderRadius: 8,
+    padding: '8px 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
 
   pageHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 16 },
   pageTitle: { margin: 0, fontSize: 28, fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.02em' },

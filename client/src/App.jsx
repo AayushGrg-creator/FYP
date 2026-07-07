@@ -5,6 +5,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import EditProfilePage from './pages/profile/EditProfilePage';
 import ProjectWorkspacePage from './pages/workspace/ProjectWorkspacePage';
 import PublicProfilePage from './pages/profile/PublicProfilePage';
+import DisputeReportPage from './pages/disputes/DisputeReportPage';
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
 
@@ -65,6 +66,7 @@ function App() {
               <Route path="/profile" element={<FreelancerProfilePage />} />
               <Route path="/profile/edit" element={<EditProfilePage />} />
               <Route path="/profile/:userId" element={<PublicProfilePage />} />
+              <Route path="/disputes/:id" element={<DisputeReportPage />} />
 
               {/* Job Routes */}
               <Route path="/jobs" element={<JobBoardPage />} />

@@ -107,10 +107,12 @@ async function computeBadgeMetrics(userId) {
 
 async function checkAndAwardBadges(userId, metrics = {}, context = {}) {
   const activeBadges = await Badge.find({ isActive: true });
+  console.log('[BADGE DEBUG] activeBadges count:', activeBadges.length);
   const newlyAwarded = [];
 
   for (const badge of activeBadges) {
     const { metric, operator, threshold } = badge.triggerCondition || {};
+    console.log(`[BADGE DEBUG] checking ${badge.slug}: metric=${metric}, value=${metrics[metric]}, operator=${operator}, threshold=${threshold}`);
     if (!metric || !(metric in metrics)) continue;
 
     const value = metrics[metric];
@@ -155,6 +157,8 @@ async function checkAndAwardBadges(userId, metrics = {}, context = {}) {
 
 async function checkAndAwardBadgesForUser(userId, context = {}) {
   const metrics = await computeBadgeMetrics(userId);
+  console.log('[BADGE DEBUG] userId:', userId);
+  console.log('[BADGE DEBUG] metrics:', metrics);
   return checkAndAwardBadges(userId, metrics, context);
 }
 

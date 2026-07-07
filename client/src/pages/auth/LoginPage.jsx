@@ -153,7 +153,6 @@ function LoginPage() {
           <Link to="/register" style={s.footerLink}>Sign Up</Link>
         </p>
 
-        <Link to="/admin" style={s.adminLink}>Admin Panel →</Link>
       </div>
     </div>
   );

@@ -37,14 +37,18 @@ function onLimitReached(req, res, options) {
 
 // ─── Global limiter (all routes) ─────────────────────────────────────────────
 const globalLimiter = rateLimit({
-  windowMs:         config.RATE_LIMIT_WINDOW_MS,       // default 15 min
-  max:              config.RATE_LIMIT_MAX_REQUESTS,     // default 100
-  standardHeaders:  true,   // Return rate-limit info in RateLimit-* headers
-  legacyHeaders:    false,   // Disable X-RateLimit-* headers (deprecated)
+  windowMs:         config.RATE_LIMIT_WINDOW_MS,
+  max:              config.RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders:  true,
+  legacyHeaders:    false,
   handler:          onLimitReached,
   skip: (req) => {
     // Never rate-limit the health-check endpoint
-    return req.path === '/health';
+    if (req.path === '/health') return true;
+    // Session checks fire on every mount/reload (incl. after payment
+    // redirects) — don't let them share a budget with everything else
+    if (req.path === '/api/auth/session') return true;
+    return false;
   },
 });
 

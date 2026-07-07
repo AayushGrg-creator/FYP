@@ -61,6 +61,23 @@ const userSchema = new mongoose.Schema(
       max     : [100, 'trustScore cannot exceed 100'],
     },
 
+    // ── Reviews (client → freelancer ratings) ───────────────────────────────────
+    // Cached/recalculated by review.controller.js's recalculateAvgRating(),
+    // same pattern as reputationService recalculating trustScore. Only
+    // meaningful for freelancer-role users.
+    avgRating: {
+      type    : Number,
+      default : 0,
+      min     : [0, 'avgRating cannot be negative'],
+      max     : [5, 'avgRating cannot exceed 5'],
+    },
+
+    ratingCount: {
+      type    : Number,
+      default : 0,
+      min     : [0, 'ratingCount cannot be negative'],
+    },
+
     isVerified: {
       type    : Boolean,
       default : false,
