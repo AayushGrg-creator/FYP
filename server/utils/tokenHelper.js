@@ -31,7 +31,7 @@ const JWT_ALGORITHM  = 'HS256';
 // Cookie options shared between set and clear operations
 const BASE_COOKIE_OPTIONS = {
   httpOnly : true,                          // not accessible via document.cookie
-  sameSite : config.IS_PROD ? 'strict' : 'lax', // CSRF protection in prod
+  sameSite : config.IS_PROD ? 'none' : 'lax', // 'none' required for cross-domain (Vercel <-> Render)
   secure   : config.IS_PROD,                // HTTPS only in production
   path     : '/',
 };
