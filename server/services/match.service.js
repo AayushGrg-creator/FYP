@@ -34,7 +34,7 @@ const { cosineSparseObjs }  = require('../ai/cosineSimilarity');
 const { preprocess, buildDocumentText } = require('../ai/preprocessor');
 const FreelancerProfile     = require('../models/FreelancerProfile');
 const Job                   = require('../models/Job');
-const { normaliseTrustScore } = require('../utils/Trustcalculator');
+const { normaliseTrustScore } = require('../utils/trustCalculator');
 const logger                 = require('../config/logger');
 
 /* ─────────────────────────────────────────────
