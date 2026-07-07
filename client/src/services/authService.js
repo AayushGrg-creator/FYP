@@ -2,7 +2,7 @@
 // Frontend auth service — cookie-based sessions (httpOnly tt_session cookie).
 // Method names match AuthContext.jsx exactly: register, login, googleAuth, getMe, logout
 
-const API_URL = '/api/auth';
+const API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
 export class AuthError extends Error {
   constructor(message, status, fieldErrors = null) {
